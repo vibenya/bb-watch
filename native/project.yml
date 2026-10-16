@@ -1,0 +1,35 @@
+name: BBWatch
+options:
+  bundleIdPrefix: dev.tokenville
+  deploymentTarget:
+    watchOS: "26.0"
+  createIntermediateGroups: true
+
+targets:
+  BBWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Sources/BBWatch
+      - path: Sources/BBWatchCore
+    info:
+      path: Info.plist
+      properties:
+        NSMicrophoneUsageDescription: "BB uses the microphone to record messages for your agent."
+        UIBackgroundModes: [audio]
+        WKWatchOnly: true
+        WKApplication: true
+        CFBundleDevelopmentRegion: en
+        CFBundleDisplayName: BB
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        PRODUCT_BUNDLE_IDENTIFIER: dev.tokenville.bbwatch
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "BB uses the microphone to record messages for your agent."
+        CODE_SIGN_STYLE: Automatic

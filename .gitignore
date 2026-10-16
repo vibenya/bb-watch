@@ -1,0 +1,31 @@
+.DS_Store
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# Generated XcodeGen project
+native/BBWatch.xcodeproj/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+native/.build-xcode*/
+native/build/
+
+# Private runtime data and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.mobileprovision
+*.caf
+*.wav
+*.log
+# BB artwork is locally supplied; redistribution rights are not established.
+native/Sources/BBWatch/Assets.xcassets/BBLogo.imageset/BBLogo.svg
+native/Sources/BBWatch/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+native/Verification/

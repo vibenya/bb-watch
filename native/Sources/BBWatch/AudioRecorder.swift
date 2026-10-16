@@ -1,0 +1,94 @@
+import AVFoundation
+import Foundation
+import WatchKit
+
+@MainActor
+final class WatchRecorder: ObservableObject {
+    @Published private(set) var isRecording = false
+    @Published private(set) var elapsed: TimeInterval = 0
+    @Published private(set) var error: String?
+    @Published private(set) var finalizationFailed = false
+    private let engine = AVAudioEngine()
+    private var writer: AudioWriter?
+    private var lastFinalizedChunks: [AudioChunk] = []
+    private var timer: Timer?
+    private var observers: [NSObjectProtocol] = []
+    private var startedAt: Date?
+    private var baseDuration: TimeInterval = 0
+    private var starting = false
+    var onInterruption: (() -> Void)?
+
+    init() {
+        for name in [AVAudioSession.interruptionNotification, AVAudioSession.routeChangeNotification, .AVAudioEngineConfigurationChange] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
+                // The observer already executes on main. Avoid queuing a second task
+                // that could mistake a startup configuration event for a later interruption.
+                MainActor.assumeIsolated {
+                    guard let self, self.isRecording else { return }
+                    if notification.name == AVAudioSession.interruptionNotification {
+                        guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                              AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+                    } else if notification.name == AVAudioSession.routeChangeNotification {
+                        guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                              let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
+                              reason == .oldDeviceUnavailable || reason == .noSuitableRouteForCategory else { return }
+                    } else {
+                        guard !self.engine.isRunning else { return }
+                    }
+                    self.pause()
+                    if !self.finalizationFailed { self.error = "Recording interrupted. Saved parts are available." }
+                    self.onInterruption?()
+                }
+            })
+        }
+    }
+
+    func start(directory: URL, duration: TimeInterval, completed: @escaping @Sendable (AudioChunk) -> Void) async throws {
+        guard !isRecording, !starting else { throw AudioFailure.noInput }
+        starting = true; defer { starting = false }
+        guard await AVAudioApplication.requestRecordPermission() else { throw AudioFailure.denied }
+        let free = try directory.resourceValues(forKeys: [.volumeAvailableCapacityKey]).volumeAvailableCapacity ?? 0
+        guard free > 20 * 1024 * 1024 else { throw AudioFailure.storageFull }
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.record, mode: .default)
+        try session.setActive(true)
+        let input = engine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else { throw AudioFailure.noInput }
+        let sink = AudioWriter(directory: directory, completed: completed)
+        writer = sink
+        lastFinalizedChunks = []
+        input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in sink.append(buffer) }
+        do { try engine.start() } catch {
+            input.removeTap(onBus: 0); writer = nil
+            try? session.setActive(false)
+            throw error
+        }
+        error = nil; finalizationFailed = false
+        baseDuration = duration; elapsed = duration; startedAt = Date(); isRecording = true
+        WKInterfaceDevice.current().play(.start)
+        timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isRecording else { return }
+                self.elapsed = self.baseDuration + (self.startedAt.map { Date().timeIntervalSince($0) } ?? 0)
+                if let error = self.writer?.currentError() {
+                    self.pause(); self.error = error.localizedDescription; self.onInterruption?()
+                }
+            }
+        }
+    }
+
+    @discardableResult func pause() -> [AudioChunk] {
+        guard isRecording else { return lastFinalizedChunks }
+        isRecording = false
+        engine.stop(); engine.inputNode.removeTap(onBus: 0)
+        do { try writer?.finish() } catch { self.error = error.localizedDescription; finalizationFailed = true }
+        let chunks = writer?.finalizedChunks() ?? []
+        lastFinalizedChunks = chunks
+        elapsed = baseDuration + chunks.reduce(0) { $0 + $1.duration }
+        writer = nil; isRecording = false; timer?.invalidate(); timer = nil
+        try? AVAudioSession.sharedInstance().setActive(false)
+        WKInterfaceDevice.current().play(.stop)
+        return chunks
+    }
+}
