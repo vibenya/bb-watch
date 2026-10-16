@@ -36,17 +36,18 @@ enum Mood: Equatable {
 /// Full-screen stage: black base, one colour bleeding in from below, the BB mark as frosted glass.
 struct Stage: View {
     var mood: Mood
+    @Environment(\.isLuminanceReduced) private var dimmed
     var body: some View {
         // Overlays keep the oversized logo out of layout: the stage must never grow past the screen.
         Color.black
-            .overlay { RadialGradient(colors: [mood.tint.opacity(mood.glow), .clear], center: UnitPoint(x: 0.5, y: 1.2), startRadius: 8, endRadius: 250) }
+            .overlay { RadialGradient(colors: [mood.tint.opacity(dimmed ? 0.15 : mood.glow), .clear], center: UnitPoint(x: 0.5, y: 1.2), startRadius: 8, endRadius: 250) }
             .overlay {
                 Image("BBLogo").renderingMode(.template).resizable().scaledToFit()
                     .frame(width: 250)
                     .rotationEffect(.degrees(-14))
                     .offset(x: 62, y: 52)
                     .foregroundStyle(.ultraThinMaterial)
-                    .opacity(0.9)
+                    .opacity(dimmed ? 0.4 : 0.9)
             }
             .clipped()
         .ignoresSafeArea()
@@ -84,6 +85,7 @@ struct GlassButton: View {
             .padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: 40)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
         .glassEffect(prominent ? .regular.tint(tint).interactive() : .regular.interactive(), in: .capsule)
     }
 }

@@ -48,16 +48,20 @@ struct StageView: View {
                     Spacer(minLength: 4)
                     if model.stage?.working == true || mood == .sending { PulseDot(color: mood.tint) }
                 }
-                Text(mood.word)
-                    .font(.poster(34)).foregroundStyle(mood.tint)
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                    .contentTransition(.interpolate)
-                    .id(mood.word)
-                    .transition(.blurReplace)
-                if let activityLine {
-                    Text(activityLine).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).lineLimit(2)
-                        .transition(.blurReplace).id(activityLine)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(mood.word)
+                        .font(.poster(34)).foregroundStyle(mood.tint)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                        .contentTransition(.interpolate)
+                        .id(mood.word)
+                        .transition(.blurReplace)
+                    if let activityLine {
+                        Text(activityLine).font(.footnote.weight(.medium)).foregroundStyle(.secondary).lineLimit(2)
+                            .transition(.blurReplace).id(activityLine)
+                    }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel([mood.word.capitalized, activityLine].compactMap { $0 }.joined(separator: ". "))
                 Spacer(minLength: 6)
                 content
                 Spacer(minLength: 0)
@@ -75,7 +79,21 @@ struct StageView: View {
         .sheet(isPresented: $showSettings) { SettingsSheet() }
         .sensoryFeedback(.success, trigger: lastReply?.id)
         .sensoryFeedback(.warning, trigger: question?.id)
+        .sensoryFeedback(.success, trigger: deliveredID)
+        .sensoryFeedback(.error, trigger: failedID)
     }
+
+    private func toCurrent(_ draft: RecordingDraft) -> Bool {
+        if case .thread(let id) = draft.destination { return id == model.currentThreadID }
+        if case .project = draft.destination { return true }
+        return false
+    }
+    /// Newest delivery that reached .accepted in the last 10 min; the window keeps a launch-time reload of old drafts silent.
+    private var deliveredID: UUID? {
+        model.drafts.filter { $0.state == .accepted && toCurrent($0) && Date().timeIntervalSince($0.enqueuedAt ?? .distantPast) < 600 }
+            .max { ($0.enqueuedAt ?? .distantPast) < ($1.enqueuedAt ?? .distantPast) }?.id
+    }
+    private var failedID: UUID? { delivery?.state == .failed ? delivery?.id : nil }
 
     @ViewBuilder private var content: some View {
         if thread == nil {
@@ -87,7 +105,7 @@ struct StageView: View {
             QuestionBlock(question: question)
         } else if let text = lastReply?.text, mood != .sending {
             Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
-                .font(.system(size: 15, weight: .medium)).lineLimit(6).fixedSize(horizontal: false, vertical: true)
+                .font(.body.weight(.medium)).lineLimit(6).fixedSize(horizontal: false, vertical: true)
                 .transition(.blurReplace).id(lastReply?.id)
         } else if let mine = lastMine?.text {
             Text("“\(mine.trimmingCharacters(in: .whitespacesAndNewlines))”")
@@ -98,11 +116,13 @@ struct StageView: View {
 
 struct PulseDot: View {
     var color: Color
+    @Environment(\.isLuminanceReduced) private var dimmed
     @State private var on = false
     var body: some View {
         Circle().fill(color).frame(width: 9, height: 9)
-            .scaleEffect(on ? 1.25 : 0.8).opacity(on ? 1 : 0.45)
-            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: on)
+            .scaleEffect(on && !dimmed ? 1.25 : 0.8).opacity(on && !dimmed ? 1 : 0.45)
+            .animation(dimmed ? nil : .easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: on)
+            .accessibilityHidden(true)
             .onAppear { on = true }
     }
 }

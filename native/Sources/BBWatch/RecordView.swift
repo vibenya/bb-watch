@@ -25,7 +25,7 @@ struct RecordView: View {
                     HStack(spacing: 4) {
                         Image(systemName: model.newThreadProject == nil ? "arrow.turn.down.right" : "plus").font(.system(size: 10, weight: .bold))
                         Kicker(text: targetLabel)
-                    }
+                    }.frame(minHeight: 40)
                 }.buttonStyle(.plain).disabled(active)
                 Spacer(minLength: 0)
                 Text(durationLabel(recorder.elapsed))
@@ -39,11 +39,11 @@ struct RecordView: View {
                 Spacer(minLength: 0)
                 HStack(spacing: 12) {
                     if active {
-                        SmallGlass(symbol: recorder.isRecording ? "pause.fill" : "mic.fill") { toggle() }
+                        SmallGlass(symbol: recorder.isRecording ? "pause.fill" : "mic.fill", label: recorder.isRecording ? "Pause" : "Resume") { toggle() }
                     }
                     RecordButton(recording: recorder.isRecording, active: active, level: recorder.level) { primary() }
                     if active {
-                        SmallGlass(symbol: "tray.and.arrow.down") { save() }
+                        SmallGlass(symbol: "tray.and.arrow.down", label: "Save without sending") { save() }
                     }
                 }
                 .animation(.snappy, value: active)
@@ -86,10 +86,11 @@ private struct RecordButton: View {
     var active: Bool
     var level: Float
     var action: () -> Void
+    @Environment(\.isLuminanceReduced) private var dimmed
     var body: some View {
         Button(action: action) {
             ZStack {
-                Circle().stroke(Mood.recording.tint.opacity(recording ? 0.9 : 0), lineWidth: 3)
+                Circle().stroke(Mood.recording.tint.opacity(recording && !dimmed ? 0.9 : 0), lineWidth: 3)
                     .scaleEffect(1 + CGFloat(level) * 0.45)
                     .opacity(Double(1 - level * 0.6))
                     .animation(.easeOut(duration: 0.12), value: level)
@@ -105,17 +106,20 @@ private struct RecordButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(active ? "Send" : "Record")
+        .accessibilityHint(active ? "Sends the recording" : "Starts recording")
     }
 }
 
 private struct SmallGlass: View {
     var symbol: String
+    var label: String
     var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 15, weight: .bold)).frame(width: 38, height: 38)
+            Image(systemName: symbol).font(.system(size: 15, weight: .bold)).frame(width: 40, height: 40)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .glassEffect(.regular.interactive(), in: .circle)
         .transition(.scale.combined(with: .opacity))
     }
