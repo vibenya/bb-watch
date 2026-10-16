@@ -8,6 +8,14 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var rejectProjects = 0
     nonisolated(unsafe) static var sends = 0
     nonisolated(unsafe) static var authenticated = false
+    // Timeline rows shaped like BB's: id, kind, role?, text?, status?, title?, command?.
+    static let timelines: [String: String] = [
+        "thr_completed": #"{"rows":[{"id":"u1","kind":"conversation","role":"user","text":"Go"},{"id":"t1","kind":"turn","status":"completed"},{"id":"w1","kind":"work","title":"Old tool"}]}"#,
+        "thr_running": #"{"rows":[{"id":"t1","kind":"turn","status":"completed"},{"id":"t2","kind":"turn","status":"running"},{"id":"w1","kind":"work","title":"Read file"},{"id":"w2","kind":"work","title":"Run tests"}]}"#,
+        "thr_error": #"{"rows":[{"id":"t1","kind":"turn","status":"running"},{"id":"w1","kind":"work","title":"Run tests"},{"id":"t2","kind":"turn","status":"error"}]}"#,
+        "thr_system": #"{"rows":[{"id":"s1","kind":"system","title":"Context compacted"}]}"#,
+        "thr_mixed": #"{"rows":[{"id":"c1","kind":"conversation","role":"user","text":"First"},{"id":"w1","kind":"work","title":"Tool","command":"ls"},{"id":"c2","kind":"conversation","role":"assistant","text":"Second"},{"id":"x1","kind":"system","text":"Noise"},{"id":"c3","kind":"conversation","role":"assistant"},{"id":"c4","kind":"conversation","role":"user","text":"Third"}]}"#,
+    ]
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "fixture.getbb.app" }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func stopLoading() {}
@@ -53,7 +61,10 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
                     guard body?["mode"] as? String == "queue-if-active", let input = body?["input"] as? [[String: String]], input.first?["text"] == "Persisted brief" else { throw CheckFailure.badSend }
                     if Self.sends > 1 { client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost)); return }
                     data = Data(#"{"ok":true,"delivery":"queued","queuedMessage":{"id":"queue-one"}}"#.utf8)
-                default: throw CheckFailure.unexpectedPath
+                default:
+                    let parts = path.split(separator: "/").map(String.init)
+                    guard parts.count == 5, parts[2] == "threads", parts[4] == "timeline", let json = Self.timelines[parts[3]] else { throw CheckFailure.unexpectedPath }
+                    data = Data(json.utf8)
                 }
             }
             let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
@@ -91,6 +102,17 @@ enum CheckFailure: Error { case badCredential, missingAuth, badSend, unexpectedP
               allThreads.last?.id == "thr_personal" else { throw CheckFailure.assertion }
         let messages = try await client.messages(threadID: "thr_one")
         guard messages.count == 1, messages.first?.text == "Real response" else { throw CheckFailure.assertion }
+        let completed = try await client.timeline(threadID: "thr_completed")
+        guard !completed.working, !completed.failed, completed.activity == nil else { throw CheckFailure.assertion }
+        let running = try await client.timeline(threadID: "thr_running")
+        guard running.working, !running.failed, running.activity == "Run tests" else { throw CheckFailure.assertion }
+        let errored = try await client.timeline(threadID: "thr_error")
+        guard errored.failed, !errored.working, errored.activity == nil else { throw CheckFailure.assertion }
+        let systemOnly = try await client.timeline(threadID: "thr_system")
+        guard !systemOnly.working, !systemOnly.failed, systemOnly.activity == nil, systemOnly.messages.isEmpty else { throw CheckFailure.assertion }
+        let mixed = try await client.timeline(threadID: "thr_mixed")
+        guard mixed.messages.map(\.id) == ["c1", "c2", "c4"], mixed.messages.map(\.text) == ["First", "Second", "Third"],
+              mixed.messages.map(\.role) == ["user", "assistant", "user"], !mixed.working else { throw CheckFailure.assertion }
         let questions = try await client.questions(threads: [BBThread(id: "thr_one", title: nil, projectId: "proj_one")])
         guard questions.count == 2, questions[0].supported, !questions[1].supported else { throw CheckFailure.assertion }
         guard try await client.resolve(question: questions[0], optionID: "yes") == "interaction-one" else { throw CheckFailure.assertion }
@@ -99,6 +121,6 @@ enum CheckFailure: Error { case badCredential, missingAuth, badSend, unexpectedP
         do { _ = try await client.send(text: "Persisted brief", threadID: "thr_one"); throw CheckFailure.assertion }
         catch BBClientError.acceptanceUnknown { }
         guard WireFixture.sends == 2 else { throw CheckFailure.assertion }
-        print("PASS: concurrent auth coalesced, GET401 refreshed once, complete sidebar deduplicated, wire decode, uncertain send never retried")
+        print("PASS: concurrent auth coalesced, GET401 refreshed once, complete sidebar deduplicated, wire decode, timeline state (completed/running/error/system/mixed), uncertain send never retried")
     }
 }
