@@ -154,4 +154,18 @@ final class ScenarioUITests: XCTestCase {
         }
         log("done")
     }
+
+    /// Walks the three-page UI for screenshots; no recording, no sends.
+    func testTour() throws {
+        app.launch(); log("launched"); settle(5); dump("stage")
+        app.swipeRight(); settle(3); log("record page"); dump("record")
+        app.swipeLeft(); settle(1); app.swipeLeft(); settle(3); log("threads page"); dump("threads")
+        app.swipeUp(); settle(2); app.swipeDown(); settle(1)
+        let rows = app.cells
+        if rows.count > 2 { rows.element(boundBy: 2).tap(); log("tap thread 2"); settle(5); dump("stage-2") }
+        app.tap(); settle(3); log("full thread sheet"); dump("thread-sheet")
+        app.swipeDown(); settle(2)
+        if app.buttons["Close"].firstMatch.exists { app.buttons["Close"].firstMatch.tap() }
+        settle(2); log("done")
+    }
 }

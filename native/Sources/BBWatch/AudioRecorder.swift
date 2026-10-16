@@ -8,6 +8,8 @@ final class WatchRecorder: ObservableObject {
     @Published private(set) var elapsed: TimeInterval = 0
     @Published private(set) var error: String?
     @Published private(set) var finalizationFailed = false
+    /// Smoothed input level 0…1 for the recording ring; updated ~10×/s.
+    @Published private(set) var level: Float = 0
     private let engine = AVAudioEngine()
     private var writer: AudioWriter?
     private var lastFinalizedChunks: [AudioChunk] = []
@@ -58,7 +60,11 @@ final class WatchRecorder: ObservableObject {
         let sink = AudioWriter(directory: directory, completed: completed)
         writer = sink
         lastFinalizedChunks = []
-        input.installTap(onBus: 0, bufferSize: 2048, format: format) { buffer, _ in sink.append(buffer) }
+        let meter = LevelMeter()
+        input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self] buffer, _ in
+            sink.append(buffer)
+            if let value = meter.sample(buffer) { Task { @MainActor in self?.level = value } }
+        }
         do { try engine.start() } catch {
             input.removeTap(onBus: 0); writer = nil
             try? session.setActive(false)
@@ -86,9 +92,26 @@ final class WatchRecorder: ObservableObject {
         let chunks = writer?.finalizedChunks() ?? []
         lastFinalizedChunks = chunks
         elapsed = baseDuration + chunks.reduce(0) { $0 + $1.duration }
-        writer = nil; isRecording = false; timer?.invalidate(); timer = nil
+        writer = nil; isRecording = false; timer?.invalidate(); timer = nil; level = 0
         try? AVAudioSession.sharedInstance().setActive(false)
         WKInterfaceDevice.current().play(.stop)
         return chunks
+    }
+}
+
+/// RMS → 0…1 with decay, throttled to every 4th buffer (~10 Hz at 2048 frames / 48 kHz).
+private final class LevelMeter: @unchecked Sendable {
+    private var count = 0
+    private var smoothed: Float = 0
+    func sample(_ buffer: AVAudioPCMBuffer) -> Float? {
+        count += 1
+        guard count % 4 == 0, let data = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return nil }
+        var sum: Float = 0
+        for i in 0..<Int(buffer.frameLength) { sum += data[i] * data[i] }
+        let rms = (sum / Float(buffer.frameLength)).squareRoot()
+        let db = max(-50, 20 * log10(max(rms, 1e-6)))
+        let value = (db + 50) / 50
+        smoothed = max(value, smoothed * 0.8)
+        return smoothed
     }
 }

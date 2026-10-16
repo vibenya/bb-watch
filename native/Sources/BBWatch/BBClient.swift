@@ -16,18 +16,29 @@ struct BBThread: Codable, Identifiable, Sendable {
     let updatedAt: Double?
     let latestAttentionAt: Double?
     let environmentBranchName: String?
+    let status: String?
+    var displayTitle: String { title ?? titleFallback ?? "Untitled" }
     init(id: String, title: String?, projectId: String?, hasPendingInteraction: Bool? = nil,
          titleFallback: String? = nil, parentThreadId: String? = nil, lifecycleOwnerThreadId: String? = nil,
          visibility: String? = nil, archivedAt: Double? = nil, pinnedAt: Double? = nil,
          pinSortKey: String? = nil, updatedAt: Double? = nil, latestAttentionAt: Double? = nil,
-         environmentBranchName: String? = nil) {
+         environmentBranchName: String? = nil, status: String? = nil) {
+        self.status = status
         self.id = id; self.title = title; self.projectId = projectId; self.hasPendingInteraction = hasPendingInteraction
         self.titleFallback = titleFallback; self.parentThreadId = parentThreadId; self.lifecycleOwnerThreadId = lifecycleOwnerThreadId
         self.visibility = visibility; self.archivedAt = archivedAt; self.pinnedAt = pinnedAt; self.pinSortKey = pinSortKey
         self.updatedAt = updatedAt; self.latestAttentionAt = latestAttentionAt; self.environmentBranchName = environmentBranchName
     }
 }
-struct BBMessage: Codable, Identifiable, Sendable { let id: String; let role: String; let text: String }
+struct BBMessage: Codable, Identifiable, Sendable, Equatable { let id: String; let role: String; let text: String }
+/// What the agent is doing right now, projected from the thread timeline.
+struct BBThreadState: Sendable, Equatable {
+    var messages: [BBMessage] = []
+    var working = false
+    var failed = false
+    /// Latest tool/operation title while working, e.g. "Run tests".
+    var activity: String?
+}
 struct BBOption: Codable, Identifiable, Sendable { let id: String; let label: String }
 struct BBQuestion: Codable, Identifiable, Sendable {
     let id: String
@@ -158,14 +169,25 @@ actor BBClient {
         var seen = Set<String>()
         return (sidebar.projects + [sidebar.personalProject]).flatMap(\.threads).filter { seen.insert($0.id).inserted }
     }
-    func messages(threadID: String) async throws -> [BBMessage] {
-        struct Row: Decodable { let id: String; let kind: String; let role: String?; let text: String? }
+    func messages(threadID: String) async throws -> [BBMessage] { try await timeline(threadID: threadID).messages }
+    func timeline(threadID: String) async throws -> BBThreadState {
+        struct Row: Decodable { let id: String; let kind: String; let role: String?; let text: String?; let status: String?; let title: String?; let command: String? }
         struct Page: Decodable { let rows: [Row] }
         let page = try decoder.decode(Page.self, from: await request("threads/\(threadID)/timeline"))
-        return page.rows.compactMap { row in
+        var state = BBThreadState()
+        state.messages = page.rows.compactMap { row in
             guard row.kind == "conversation", let role = row.role, let text = row.text else { return nil }
             return BBMessage(id: row.id, role: role, text: text)
         }
+        if let turn = page.rows.last(where: { $0.kind == "turn" }) {
+            let finished: Set<String> = ["completed", "error", "failed", "cancelled", "canceled", "aborted"]
+            state.working = !finished.contains(turn.status ?? "")
+            state.failed = turn.status == "error" || turn.status == "failed"
+        }
+        if state.working, let work = page.rows.last(where: { ($0.kind == "work" || $0.kind == "system") && ($0.title ?? $0.command) != nil }) {
+            state.activity = work.title ?? work.command
+        }
+        return state
     }
     func questions(threads: [BBThread]) async throws -> [BBQuestion] {
         var result: [BBQuestion] = []

@@ -18,6 +18,14 @@ final class AppModel: ObservableObject {
     @Published var sending: Set<UUID> = []
     @Published var connection = ConnectionSettings()
     @Published var lastSync: Date?
+    /// The thread the stage shows and recordings go to by default. Survives relaunch.
+    @Published var currentThreadID: String? = UserDefaults.standard.string(forKey: "currentThreadID") {
+        didSet { UserDefaults.standard.set(currentThreadID, forKey: "currentThreadID"); if oldValue != currentThreadID { stage = nil } }
+    }
+    /// Live projection of the current thread (messages + agent activity).
+    @Published var stage: BBThreadState?
+    /// Set when the next recording should open a new thread in this project instead of replying.
+    @Published var newThreadProject: BBProject?
     let recorder = WatchRecorder()
     let playback = WatchPlayback()
     private(set) var store: DurableStore?
@@ -85,16 +93,40 @@ final class AppModel: ObservableObject {
         try JSONEncoder().encode(offlineCache).write(to: cacheURL, options: .atomic)
     }
     func cachedMessages(threadID: String) -> [BBMessage] { offlineCache?.messages[threadID] ?? [] }
-    func loadMessages(threadID: String) async throws -> [BBMessage] {
+    func loadMessages(threadID: String) async throws -> [BBMessage] { try await loadState(threadID: threadID).messages }
+    func loadState(threadID: String) async throws -> BBThreadState {
         let expected = identity
-        let result: [BBMessage]
-        do { result = try await client.messages(threadID: threadID) }
+        let result: BBThreadState
+        do { result = try await client.timeline(threadID: threadID) }
         catch { await WatchDiagnostics.shared.record("messages.failed", error: error); throw error }
         guard identity == expected else { throw AppFailure.connectionChanged }
         if offlineCache == nil { offlineCache = OfflineCache(identity: identity, updatedAt: .distantPast, projects: projects, threads: threads, questions: questions) }
-        offlineCache?.messages[threadID] = result
-        try saveCache()
+        if offlineCache?.messages[threadID] != result.messages { offlineCache?.messages[threadID] = result.messages; try saveCache() }
         return result
+    }
+    var currentThread: BBThread? { currentThreadID.flatMap { id in threads.first { $0.id == id } } }
+    /// Where the next recording goes: a new thread in the chosen project, else the current thread.
+    var recordTarget: RecordingDestination? {
+        if let project = newThreadProject { return .project(id: project.id) }
+        return currentThreadID.map { .thread(id: $0) }
+    }
+    /// Keeps the stage alive: timeline every 3 s, full refresh every 30 s. Runs while the UI is visible.
+    func watchStage() async {
+        var tick = 0
+        while !Task.isCancelled {
+            if connected, let id = currentThreadID {
+                if stage == nil { stage = BBThreadState(messages: cachedMessages(threadID: id)) }
+                if let state = try? await loadState(threadID: id), state != stage { stage = state }
+            }
+            if tick % 10 == 0 { await refresh() }
+            tick += 1
+            try? await Task.sleep(for: .seconds(3))
+        }
+    }
+    /// Pick a sensible stage on first run: the most recently active visible chat.
+    func adoptDefaultThread() {
+        guard currentThreadID == nil || currentThread == nil, let first = chats.max(by: { $0.activityAt < $1.activityAt }) else { return }
+        currentThreadID = first.id
     }
     func cancelQueue(_ id: UUID) {
         guard !sending.contains(id), var value = draft(id), value.state == .queued else { return }
@@ -292,6 +324,7 @@ final class AppModel: ObservableObject {
             case .project(let projectID):
                 let thread = try await requestClient.createThread(projectID: projectID, text: text)
                 value.destination = .thread(id: thread.id)
+                if identity == requestIdentity { currentThreadID = thread.id; newThreadProject = nil }
                 value.acceptanceReceipt = "Created thread with initial prompt: \(thread.id)"
             }
             value.state = .accepted
