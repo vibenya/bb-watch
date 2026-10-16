@@ -33,3 +33,29 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "BB uses the microphone to record messages for your agent."
         CODE_SIGN_STYLE: Automatic
+  BBWatchUITests:
+    type: bundle.ui-testing
+    platform: watchOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: UITests
+    dependencies:
+      - target: BBWatch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.tokenville.bbwatch.uitests
+        TEST_TARGET_NAME: BBWatch
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  BBWatch:
+    build:
+      targets:
+        BBWatch: all
+        BBWatchUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - BBWatchUITests
