@@ -19,6 +19,9 @@ struct ThreadsView: View {
                 }.frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
             }
             .listItemTint(Mood.working.tint.opacity(0.35))
+            if unsent > 0 {
+                Button { recordings = true } label: { Label("Recordings · \(unsent)", systemImage: "waveform") }
+            }
             ForEach(ChatList.filtered(model.chats, query: search).sorted { $0.activityAt > $1.activityAt }) { chat in
                 Button {
                     model.currentThreadID = chat.id; model.newThreadProject = nil
@@ -30,9 +33,6 @@ struct ThreadsView: View {
                 Text(model.connected ? (model.refreshing ? "Loading chats" : "No chats yet") : "Connect BB in Settings").foregroundStyle(.secondary)
             }
             Section {
-                if unsent > 0 {
-                    Button { recordings = true } label: { Label("Recordings · \(unsent)", systemImage: "waveform") }
-                }
                 Button { settings = true } label: { Label(model.connected ? "Settings" : "Connect BB", systemImage: model.connected ? "gearshape" : "link") }
             }
         }
@@ -40,6 +40,7 @@ struct ThreadsView: View {
         .containerBackground(.black.gradient, for: .navigation)
         .sheet(isPresented: $newThread) { ProjectPicker(page: $page) }
         .sheet(isPresented: $recordings) { RecordingsSheet() }
+        .onChange(of: model.sending.isEmpty) { _, idle in if !idle { recordings = false } }
         .sheet(isPresented: $settings) { SettingsSheet() }
     }
 }
@@ -53,7 +54,7 @@ struct ThreadRow: View {
     }
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Circle().fill(mood == .idle ? Color.white.opacity(0.18) : mood.tint).frame(width: 7, height: 7).padding(.top, 7)
+            Circle().fill(mood == .idle ? Color.white.opacity(0.18) : mood.tint).frame(width: 7, height: 7).padding(.top, 7).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(chat.thread.displayTitle)
                     .font(.system(size: 15, weight: current ? .bold : .semibold)).lineLimit(2)

@@ -89,9 +89,10 @@ final class ScenarioUITests: XCTestCase {
         waitFor(rows.element(boundBy: 1), "thread rows", timeout: 30)
         settle(1.5); dump("threads")
         crown(1.0); settle(0.8); crown(-1.0); settle(0.8); log("scrolled threads")
-        let target: XCUIElement
-        if wantedTitle.isEmpty { target = rows.element(boundBy: 2) } else { target = row(wantedTitle) }
-        tap(target, wantedTitle.isEmpty ? "second chat" : "chat \(wantedTitle)")
+        // Never pick an arbitrary chat: this scenario sends one live message.
+        guard !wantedTitle.isEmpty else { XCTFail("BB_THREAD_TITLE is required for the send scenario"); return }
+        let target = row(wantedTitle)
+        tap(target, "chat \(wantedTitle)")
         waitFor(anyMood(), "stage after pick", timeout: 15)
         if !wantedTitle.isEmpty {
             waitFor(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", wantedTitle)).firstMatch, "stage shows thread", timeout: 10)
@@ -100,20 +101,17 @@ final class ScenarioUITests: XCTestCase {
 
         // 3. Send the seeded transcript-only draft to the current thread.
         app.swipeLeft(); settle(1.5)
-        let recordings = row("Recordings")
-        for _ in 0..<60 where !(recordings.exists && recordings.isHittable) { app.swipeUp(velocity: .fast) }
-        dump("threads-footer")
-        tap(recordings, "Recordings")
+        // The Recordings row sits right under "New thread" whenever something is unsent.
+        crown(-1.5); settle(0.8); dump("threads-top")
+        tap(row("Recordings"), "Recordings")
         settle(1.5); dump("recordings-list")
         tap(row("00:14"), "newest recording")  // sheet rows start with the duration; list is newest first
         waitFor(row("Send"), "draft view"); settle(1.5); dump("draft")
         tap(row("Send"), "Send")
         let sendT = Date()
-        // The sheet stays open after Send; close it and return to the stage to watch.
+        // Send closes the sheet and lands on the stage by itself; just watch.
         settle(0.5); dump("draft-sent")
-        closeSheet(); settle(0.5)
-        if !anyMood().exists { closeSheet() }
-        app.swipeRight(); settle(1)
+        waitFor(anyMood(), "stage after send", timeout: 10)
         let sawSending = waitFor(mood(["SENDING"]), "SENDING", timeout: 15)
         if sawSending { dump("stage-sending") }
         let sawWorking = waitFor(mood(["WORKING"]), "WORKING", timeout: 60)

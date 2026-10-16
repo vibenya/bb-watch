@@ -43,6 +43,8 @@ struct RootView: View {
             Task { await model.start(destination: target) }
         }
         .onChange(of: model.activeID) { _, id in if id != nil { withAnimation(.snappy) { page = .record } } }
+        // Any send in flight belongs on the stage, wherever it was started.
+        .onChange(of: model.sending.isEmpty) { _, idle in if !idle { withAnimation(.snappy) { page = .stage } } }
         .onChange(of: model.questions.map(\.id)) { _, _ in
             // A question for the current thread pulls the stage into view.
             if model.questions.contains(where: { $0.threadID == model.currentThreadID }) { withAnimation(.snappy) { page = .stage } }
@@ -79,7 +81,7 @@ struct SettingsSheet: View {
 struct RecordingsSheet: View {
     @EnvironmentObject var model: AppModel
     var body: some View {
-        List {
+        NavigationStack { List {
             ForEach(model.drafts.filter { $0.state != .accepted }.reversed()) { draft in
                 NavigationLink { DraftDetail(id: draft.id) } label: {
                     VStack(alignment: .leading, spacing: 2) {
@@ -89,7 +91,7 @@ struct RecordingsSheet: View {
                 }
             }
             if model.drafts.allSatisfy({ $0.state == .accepted }) { Text("Everything is sent").foregroundStyle(.secondary) }
-        }.containerBackground(.black.gradient, for: .navigation)
+        }.containerBackground(.black.gradient, for: .navigation) }
     }
 }
 
