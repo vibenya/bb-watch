@@ -1,5 +1,33 @@
 # Development handoff — 2026-10-16
 
+## 2026-10-16 — stage redesign
+
+The Home list was replaced by a horizontal three-page `TabView`: Record (left),
+Stage (centre, home), Threads (right). The Stage shows one current thread as a
+mood (READY, WORKING, NEEDS YOU, DONE, FAILED, SENDING, OFFLINE) over a black
+background with one colour, the agent's activity line and its latest reply.
+Tap opens the thread sheet; long-press opens Settings. Recording defaults to the
+current thread; New thread picks a project and opens the recorder. A
+`BBWatchUITests` target (`testTour`, `testFullScenario`) was added; see
+`native/README.md`.
+
+Nothing in the new UI is verified on hardware. Any evidence is limited to the
+watchOS 26.1 simulator; page navigation, mood colours and typography, thread
+selection and the Stage layout need a device check. Recording cannot run in the simulator (AVAudioEngine input
+aborts), so the Record page and the record-to-send path of the new UI have not
+been exercised outside hardware. `testFullScenario` still follows the previous
+Home-list navigation.
+
+Open items:
+
+- Complication and Smart Stack entry.
+- Push notifications for replies and questions.
+- Short voice summaries (playback still reads the full response).
+- Hardware acceptance of the new UI and of recording from the Record page.
+- Always On display behavior verified on device (the Stage tint and glass logo
+  are untested in the dimmed state).
+- Question types beyond single choice (multi-select, grouped and approval).
+
 ## Latest evidence
 
 The updated app was installed and launched on a physical Apple Watch Ultra 2

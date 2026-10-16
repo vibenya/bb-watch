@@ -1,5 +1,7 @@
 # Реализация BB Watch: статус относительно A01–A30
 
+> The Home list described in older rows was replaced on 2026-10-16 by a three-page UI (Record, Stage, Threads); see the [handoff](../docs/HANDOFF.md). Criterion statuses below were not re-evaluated against it.
+>
 > Historical baseline: later installation and user recording/send confirmation are recorded in [current handoff](../docs/HANDOFF.md) and [validation](VALIDATION.md). Earlier device-blocked statements below are superseded; remaining acceptance gaps still apply.
 
 Это первый интеграционный срез: watch-only приложение, запись на часах, подключение к BB, доставка текста и простой single-choice ответ. Таблица сверена с исходниками и матрицей в `specs/bb-watch-product-spec.md`. Девять SwiftPM тестов, обе исполняемые проверки, строгая Swift 6 проверка для watchsimulator и сборки двух SDK прошли. Watch-only приложение также запущено в watchOS 26.1 симуляторе. Это не подтверждает запись звука, LTE или другие сценарии на физических часах.

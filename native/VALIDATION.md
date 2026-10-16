@@ -56,3 +56,7 @@ Installation retry: updated signed build installed successfully on the physical 
 ## User smoke confirmation
 
 After the latest physical update, the user sent a dictated message from Apple Watch and reported success. This is a real recording/send smoke check, not comprehensive hardware or LTE acceptance. See `../docs/HANDOFF.md` for current priorities.
+
+## Stage redesign — 2026-10-16
+
+The Home list was replaced by a three-page UI (Record, Stage, Threads). Earlier entries above that mention the Home screen, the Record button on it, or navigation through Home list rows describe the previous UI. Not re-verified here: `./native/check.sh` against the new UI, hardware behavior, Always On display and recording from the new Record page. The simulator cannot record (AVAudioEngine input aborts). See `../docs/HANDOFF.md`.
