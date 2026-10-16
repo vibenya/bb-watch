@@ -13,6 +13,8 @@ targets:
     sources:
       - path: Sources/BBWatch
       - path: Sources/BBWatchCore
+    dependencies:
+      - target: BBWatchComplication
     info:
       path: Info.plist
       properties:
@@ -20,6 +22,9 @@ targets:
         UIBackgroundModes: [audio]
         WKWatchOnly: true
         WKApplication: true
+        CFBundleURLTypes:
+          - CFBundleURLName: dev.tokenville.bbwatch
+            CFBundleURLSchemes: [bbwatch]
         CFBundleDevelopmentRegion: en
         CFBundleDisplayName: BB
         CFBundleShortVersionString: $(MARKETING_VERSION)
@@ -33,6 +38,28 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "BB uses the microphone to record messages for your agent."
         CODE_SIGN_STYLE: Automatic
+  BBWatchComplication:
+    type: app-extension
+    platform: watchOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Sources/BBWatchComplication
+      - path: Sources/BBWatch/Assets.xcassets
+    info:
+      path: Sources/BBWatchComplication/Info.plist
+      properties:
+        CFBundleDisplayName: BB
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.tokenville.bbwatch.complication
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
   BBWatchUITests:
     type: bundle.ui-testing
     platform: watchOS

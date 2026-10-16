@@ -35,6 +35,13 @@ struct RootView: View {
             await model.refresh(); model.adoptDefaultThread()
             await model.watchStage()
         }
+        .onOpenURL { url in
+            // Complication tap: jump to the recorder and start on the current thread.
+            guard url.scheme == "bbwatch", url.host == "record" else { return }
+            withAnimation(.snappy) { page = .record }
+            guard !model.recorder.isRecording, let target = model.recordTarget else { return }
+            Task { await model.start(destination: target) }
+        }
         .onChange(of: model.activeID) { _, id in if id != nil { withAnimation(.snappy) { page = .record } } }
         .onChange(of: model.questions.map(\.id)) { _, _ in
             // A question for the current thread pulls the stage into view.
