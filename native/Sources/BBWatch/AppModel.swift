@@ -110,17 +110,23 @@ final class AppModel: ObservableObject {
         if let project = newThreadProject { return .project(id: project.id) }
         return currentThreadID.map { .thread(id: $0) }
     }
-    /// Keeps the stage alive: timeline every 3 s, full refresh every 30 s. Runs while the UI is visible.
+    /// True while the screen is on and the app is in front; the stage loop sleeps otherwise.
+    @Published var foreground = true
+    /// Keeps the stage alive. Fast (3 s) only while the agent works or a send is in flight;
+    /// otherwise 20 s, and nothing at all while the app is not in front. Full refresh every ~60 s.
     func watchStage() async {
-        var tick = 0
+        var sinceRefresh: TimeInterval = 60
         while !Task.isCancelled {
+            guard foreground else { try? await Task.sleep(for: .seconds(2)); continue }
             if connected, let id = currentThreadID {
                 if stage == nil { stage = BBThreadState(messages: cachedMessages(threadID: id)) }
                 if let state = try? await loadState(threadID: id), state != stage { stage = state }
             }
-            if tick % 10 == 0 { await refresh() }
-            tick += 1
-            try? await Task.sleep(for: .seconds(3))
+            if sinceRefresh >= 60 { await refresh(); sinceRefresh = 0 }
+            let busy = stage?.working == true || !sending.isEmpty || currentThread?.status == "active"
+            let interval: TimeInterval = busy ? 3 : 20   // ponytail: two speeds; add exponential backoff if LTE data shows up in diagnostics
+            sinceRefresh += interval
+            try? await Task.sleep(for: .seconds(interval))
         }
     }
     /// Pick a sensible stage on first run: the most recently active visible chat.

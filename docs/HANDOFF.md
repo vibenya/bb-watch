@@ -68,3 +68,5 @@ excluded. Add owned artwork at README paths before a full Xcode build. The
 maintainer's local checkout retains those ignored files for device development.
 No binary release, App Store submission or production backend change accompanies
 this source publication. No actual credentials or device signing identities belong here.
+
+End-to-end simulator evidence (2026-10-17): XCUITest testFullScenario passed against live BB; a transcript draft sent from Recordings reached the agent and the stage showed WORKING → DONE with the reply in 36 s. Stage polling: 3 s while working/sending, 20 s idle, paused when the app is not active. Untested on hardware: microphone, haptics, Always On, complication and the bbwatch://record deep link (it starts the microphone without confirmation).

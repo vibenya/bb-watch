@@ -21,7 +21,9 @@ identifiers, signing profiles, local logs or third-party artwork without rights.
   current playback reads the full response.
 - Questions are messages followed by multiline action buttons and Record voice.
   Single-choice taps create a persisted ten-second cancelable intent, not a checkbox.
-- Share BB/Chats state and ordering. Do not invent a separate pin model or claim
+- Share BB/Chats state (pins, hidden/archived, families). The watch Threads page
+  orders by family activity and shows pins as a glyph, not on top: on a 49 mm screen
+  the top rows must be what moved last. Do not invent a separate pin model or claim
   arbitrary React plugins run natively on watchOS.
 
 ## Architecture

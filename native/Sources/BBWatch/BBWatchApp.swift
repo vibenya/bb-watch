@@ -13,6 +13,7 @@ struct BBWatchApp: App {
                     Button("OK", role: .cancel) { model.error = nil }
                 } message: { Text(model.error ?? "") }
                 .onChange(of: phase) { _, next in
+                    model.foreground = next == .active
                     if next == .active { Task { await model.refresh(); model.adoptDefaultThread() } }
                 }
         }
