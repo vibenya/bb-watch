@@ -1,7 +1,7 @@
 import XCTest
 
 /// Drives the full watch scenario against a live BB for usability recording.
-/// Pairing code comes from the BB_PAIRING_CODE environment variable; project name from BB_PROJECT_NAME.
+/// Env: BB_PAIRING_CODE (pair if offline), BB_THREAD_TITLE (thread to select on the Threads page).
 final class ScenarioUITests: XCTestCase {
     let app = XCUIApplication()
     let start = Date()
@@ -45,113 +45,96 @@ final class ScenarioUITests: XCTestCase {
     }
     func settle(_ seconds: TimeInterval) { Thread.sleep(forTimeInterval: seconds) }
 
+    /// The big mood word on the stage (or the empty-stage hint when no thread is selected).
+    func mood(_ words: [String]) -> XCUIElement {
+        let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: words.map { NSPredicate(format: "label ==[c] %@", $0) })
+        return app.staticTexts.matching(predicate).firstMatch
+    }
+    func anyMood() -> XCUIElement { mood(["READY", "WORKING", "NEEDS YOU", "DONE", "FAILED", "SENDING", "OFFLINE"]) }
+    func closeSheet() {
+        let close = app.buttons["Close"].firstMatch
+        if close.waitForExistence(timeout: 3) { close.tap() } else { app.swipeDown() }
+        log("close sheet")
+    }
+
+    /// Three pages: Record ← Stage → Threads. Drives the live BB without the microphone.
     func testFullScenario() throws {
         let env = ProcessInfo.processInfo.environment
         let code = env["BB_PAIRING_CODE"] ?? ""
+        let wantedTitle = env["BB_THREAD_TITLE"] ?? ""
         log("code present: \(!code.isEmpty)")
-        let projectName = env["BB_PROJECT_NAME"] ?? "bb-watch"
         app.launch(); log("launched")
-        waitFor(row("Record"), "home Record")
-        settle(1); dump("home-unpaired")
 
-        // 1. Pair with live BB.
-        crown(0.7); settle(0.5); dump("home-scrolled"); let connect = row("Connect BB").exists ? row("Connect BB") : row("Settings")
-        tap(connect, "Settings/Connect")
-        settle(1); dump("settings")
-        if !code.isEmpty && !app.staticTexts["BB connected"].exists {
+        // 1. Stage, pairing if needed.
+        waitFor(anyMood(), "stage word", timeout: 30)
+        settle(2); dump("stage-launch")
+        if !code.isEmpty && mood(["OFFLINE"]).exists {
+            app.swipeLeft(); settle(1.5)
+            tap(row("Connect BB"), "Connect BB row")
             let field = app.textFields["Pairing code"]
-            tap(field, "pairing field")
-            settle(1.5)
+            tap(field, "pairing field"); settle(1.5)
             app.typeText(code); log("typed code")
             settle(0.5); dump("pairing-keyboard")
             for done in ["Done", "Готово"] where app.buttons[done].exists { app.buttons[done].tap(); log("tap \(done)"); break }
             settle(1)
-            tap(app.buttons["Connect BB"], "Connect BB button")
-            waitFor(app.staticTexts["BB connected"], "BB connected", timeout: 40)
+            tap(app.buttons["Connect"].firstMatch, "Connect")
+            waitFor(app.staticTexts["Connected"], "Connected", timeout: 40)
+            settle(1); dump("settings-connected"); closeSheet(); settle(1)
+            app.swipeRight(); settle(1.5)
         }
-        settle(1); dump("settings-connected")
-        back()
 
-        // 2. Home after sync.
-        waitFor(row("Record"), "home")
-        settle(8); crown(1.0); settle(0.5)
-        log("home synced: \(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Updated'")).firstMatch.exists)")
-        dump("home-paired"); crown(-1.0); settle(0.5)
-
-        // 3. Chats list and a thread.
-        tap(row("Chats"), "Chats")
-        waitFor(app.navigationBars.staticTexts["Chats"], "chats title")
-        waitFor(app.cells.element(boundBy: 1), "chat rows", timeout: 30)
-        settle(1.5); dump("chats")
-        app.swipeUp(); settle(1); app.swipeUp(); settle(1); log("scrolled chats")
-        app.swipeDown(); app.swipeDown(); settle(1)
-        let firstChat = app.cells.element(boundBy: 0)
-        tap(firstChat, "first chat")
-        waitFor(row("Record reply"), "thread view")
-        settle(2); dump("thread")
-        app.swipeUp(); settle(1); app.swipeUp(); settle(1); log("scrolled thread")
-        back(); settle(0.5); back(); settle(0.5)
-
-        // 4. Record → send → new thread in project. The watch simulator aborts on AVAudioEngine input,
-        // so with BB_SKIP_RECORD the seeded transcript-only draft from Recordings is sent instead.
-        if env["BB_SKIP_RECORD"] == nil {
-            tap(row("Record"), "Record")
-            waitFor(app.buttons["Send"], "recording screen")
-            log("recording-started"); settle(1); dump("recording")
-            settle(9)
-            tap(app.buttons["Pause"], "Pause"); settle(1.5); dump("paused")
-            tap(app.buttons["Resume"], "Resume"); settle(4)
-            tap(app.buttons["Send"], "Send")
-        } else {
-            tap(row("Recordings"), "Recordings")
-            waitFor(app.navigationBars.staticTexts["Recordings"], "recordings title")
-            settle(1.5); dump("recordings-list")
-            tap(app.cells.element(boundBy: 0), "newest recording")
-            waitFor(row("Send"), "draft view"); settle(1.5); dump("draft")
-            tap(row("Send"), "Send")
+        // 2. Threads page: pick the test thread.
+        app.swipeLeft(); settle(1.5); log("threads page")
+        let rows = app.cells
+        waitFor(rows.element(boundBy: 1), "thread rows", timeout: 30)
+        settle(1.5); dump("threads")
+        crown(1.0); settle(0.8); crown(-1.0); settle(0.8); log("scrolled threads")
+        let target: XCUIElement
+        if wantedTitle.isEmpty { target = rows.element(boundBy: 2) } else { target = row(wantedTitle) }
+        tap(target, wantedTitle.isEmpty ? "second chat" : "chat \(wantedTitle)")
+        waitFor(anyMood(), "stage after pick", timeout: 15)
+        if !wantedTitle.isEmpty {
+            waitFor(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", wantedTitle)).firstMatch, "stage shows thread", timeout: 10)
         }
-        waitFor(row("New thread"), "recipient picker")
-        settle(1.5); dump("recipients")
-        app.swipeUp(); settle(1); app.swipeDown(); settle(0.5)
-        tap(row("New thread"), "New thread")
-        waitFor(app.buttons.element(boundBy: 1), "projects")
-        settle(1); dump("projects")
-        let project = app.buttons[projectName]
-        if project.waitForExistence(timeout: 3) { project.tap(); log("tap project \(projectName)") }
-        else { app.buttons.element(boundBy: 1).tap(); log("tap first project") }
-        waitFor(app.staticTexts["Queued"].exists ? app.staticTexts["Queued"] : app.staticTexts["Transcribing"], "sending", timeout: 15)
-        settle(0.5); dump("draft-sending")
-        waitFor(app.staticTexts["Accepted by BB"], "accepted", timeout: 90)
-        settle(1); dump("draft-accepted")
+        settle(2); dump("stage-picked")
 
-        // 5. Watch the agent reply.
-        tap(row("Open thread"), "Open thread")
-        waitFor(row("Record reply"), "new thread")
-        var replyFound = false
-        for i in 0..<12 {
-            settle(8)
-            if app.buttons["Refresh"].exists { app.buttons["Refresh"].tap() }
-            log("poll reply \(i)")
-            if app.staticTexts["Agent"].waitForExistence(timeout: 4) { replyFound = true; break }
-        }
-        log("agent reply found: \(replyFound)")
-        settle(1); dump("thread-after-send")
-        if replyFound {
-            tap(app.cells.containing(.staticText, identifier: "Agent").firstMatch, "agent reply")
-            waitFor(app.buttons["Listen"], "reply view")
-            settle(1); dump("reply")
-            tap(app.buttons["Listen"], "Listen"); settle(6)
-            if app.buttons["Pause"].exists { app.buttons["Pause"].tap(); log("pause playback") }
-            back(); settle(0.5)
-        }
-        back(); settle(0.5)
-        if app.buttons["Back"].exists || app.navigationBars.buttons.firstMatch.exists { back(); settle(0.5) }
+        // 3. Send the seeded transcript-only draft to the current thread.
+        app.swipeLeft(); settle(1.5)
+        let recordings = row("Recordings")
+        for _ in 0..<60 where !(recordings.exists && recordings.isHittable) { app.swipeUp(velocity: .fast) }
+        dump("threads-footer")
+        tap(recordings, "Recordings")
+        settle(1.5); dump("recordings-list")
+        tap(row("00:14"), "newest recording")  // sheet rows start with the duration; list is newest first
+        waitFor(row("Send"), "draft view"); settle(1.5); dump("draft")
+        tap(row("Send"), "Send")
+        let sendT = Date()
+        // The sheet stays open after Send; close it and return to the stage to watch.
+        settle(0.5); dump("draft-sent")
+        closeSheet(); settle(0.5)
+        if !anyMood().exists { closeSheet() }
+        app.swipeRight(); settle(1)
+        let sawSending = waitFor(mood(["SENDING"]), "SENDING", timeout: 15)
+        if sawSending { dump("stage-sending") }
+        let sawWorking = waitFor(mood(["WORKING"]), "WORKING", timeout: 60)
+        if sawWorking { settle(1); dump("stage-working") }
+        let done = waitFor(mood(["DONE"]), "DONE", timeout: 120)
+        log("send-to-done \(String(format: "%.1f", Date().timeIntervalSince(sendT)))s done=\(done)")
+        settle(2); dump("stage-done")
+        XCTAssertTrue(done, "agent reply never reached DONE")
 
-        // 6. Remaining home sections.
-        if waitFor(row("Needs You"), "home again", timeout: 10) {
-            tap(row("Needs You"), "Needs You"); settle(2); dump("needs-you"); back(); settle(0.5)
-            tap(row("Recordings"), "Recordings"); settle(2); dump("recordings"); back(); settle(0.5)
-        }
+        // 4. Full thread sheet.
+        app.tap(); log("tap stage")
+        waitFor(app.buttons["Listen"].firstMatch, "thread sheet", timeout: 10)
+        settle(1.5); dump("thread-sheet")
+        let listen = app.buttons["Listen"].firstMatch
+        if listen.exists { listen.tap(); log("tap Listen"); settle(3); dump("thread-sheet-playing") }
+        closeSheet(); settle(1.5)
+
+        // 5. Record page, no recording.
+        app.swipeRight(); settle(2.5); log("record page"); dump("record")
+        app.swipeLeft(); settle(1.5); log("back on stage")
+        waitFor(anyMood(), "stage again", timeout: 10)
         log("done")
     }
 
