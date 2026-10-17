@@ -1,6 +1,15 @@
 import Foundation
 
 struct BBProject: Codable, Identifiable, Sendable { let id: String; let name: String }
+struct BBProvider: Decodable, Identifiable, Sendable { let id: String; let displayName: String; let available: Bool }
+struct BBModel: Decodable, Identifiable, Sendable { let id: String; let model: String; let displayName: String; let isDefault: Bool }
+struct BBModelLoadError: Decodable, Sendable { let providerId: String; let code: String; let detail: String? }
+struct BBExecutionOptions: Decodable, Sendable {
+    let providers: [BBProvider]
+    let models: [BBModel]
+    let modelLoadError: BBModelLoadError?
+}
+struct BBProjectExecutionDefaults: Decodable, Sendable { let providerId: String; let model: String? }
 struct BBThread: Codable, Identifiable, Sendable {
     let id: String
     let title: String?
@@ -189,6 +198,12 @@ actor BBClient {
     }
     private func json(_ value: [String: Any]) throws -> Data { try JSONSerialization.data(withJSONObject: value) }
     func projects() async throws -> [BBProject] { try decoder.decode([BBProject].self, from: await request("projects")) }
+    func executionOptions(providerID: String? = nil) async throws -> BBExecutionOptions {
+        try decoder.decode(BBExecutionOptions.self, from: await request("system/execution-options", query: providerID.map { [URLQueryItem(name: "providerId", value: $0)] } ?? []))
+    }
+    func projectExecutionDefaults(projectID: String) async throws -> BBProjectExecutionDefaults? {
+        try decoder.decode(BBProjectExecutionDefaults?.self, from: await request("projects/\(projectID)/default-execution-options"))
+    }
     func threads() async throws -> [BBThread] {
         struct Project: Decodable { let threads: [BBThread] }
         struct Sidebar: Decodable { let projects: [Project]; let personalProject: Project }
@@ -288,11 +303,21 @@ actor BBClient {
         return result
     }
     func transcribe(file: URL) async throws -> String {
+        try Task.checkCancellation()
         let boundary = UUID().uuidString
-        var body = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.wav\"\r\nContent-Type: audio/wav\r\n\r\n".utf8)
-        body.append(try Data(contentsOf: file)); body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        let audio = try Data(contentsOf: file, options: .mappedIfSafe)
+        var body = Data()
+        body.reserveCapacity(audio.count + 256)
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.wav\"\r\nContent-Type: audio/wav\r\n\r\n".utf8))
+        body.append(audio); body.append(Data("\r\n--\(boundary)--\r\n".utf8))
         struct Transcript: Decodable { let text: String }
-        return try decoder.decode(Transcript.self, from: await request("system/voice-transcription", body: body, contentType: "multipart/form-data; boundary=\(boundary)")).text
+        // ASR has no agent mutation; an expired session can safely reauthenticate once.
+        let data: Data
+        do { data = try await request("system/voice-transcription", body: body, contentType: "multipart/form-data; boundary=\(boundary)") }
+        catch BBClientError.http(401) {
+            data = try await request("system/voice-transcription", body: body, contentType: "multipart/form-data; boundary=\(boundary)")
+        }
+        return try decoder.decode(Transcript.self, from: data).text
     }
     func send(text: String, threadID: String) async throws -> BBSendReceipt {
         let body = try json(["input": [["type": "text", "text": text]], "mode": "queue-if-active"])
@@ -302,8 +327,11 @@ actor BBClient {
         return BBSendReceipt(delivery: receipt.delivery, acceptedAt: Date(), threadID: threadID)
     }
     /// BB creates and dispatches the initial prompt in one operation. Never send it twice.
-    func createThread(projectID: String, text: String) async throws -> BBThread {
-        let body = try json(["projectId": projectID, "origin": "sdk", "environment": ["type": "project-default"], "input": [["type": "text", "text": text]]])
+    func createThread(projectID: String, text: String, providerID: String? = nil, model: String? = nil) async throws -> BBThread {
+        var fields: [String: Any] = ["projectId": projectID, "origin": "sdk", "environment": ["type": "project-default"], "input": [["type": "text", "text": text]]]
+        if let providerID { fields["providerId"] = providerID }
+        if let model { fields["model"] = model }
+        let body = try json(fields)
         let data = try await request("threads", body: body, mutation: true)
         guard let thread = try? decoder.decode(BBThread.self, from: data) else { throw BBClientError.acceptanceUnknown }
         return thread

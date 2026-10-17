@@ -30,7 +30,7 @@ final class AppModel: ObservableObject {
     /// The thread the stage shows and recordings go to by default. Survives relaunch.
     @Published var currentThreadID: String? = UserDefaults.standard.string(forKey: "currentThreadID") {
         didSet {
-            UserDefaults.standard.set(currentThreadID, forKey: "currentThreadID")
+            if !isFixture { UserDefaults.standard.set(currentThreadID, forKey: "currentThreadID") }
             if oldValue != currentThreadID { stageRevision = UUID(); stage = nil; stageSyncFailed = false }
         }
     }
@@ -41,7 +41,27 @@ final class AppModel: ObservableObject {
     @Published var stage: BBThreadState?
     @Published var stageSyncFailed = false
     /// Set when the next recording should open a new thread in this project instead of replying.
-    @Published var newThreadProject: BBProject?
+    @Published var newThreadProject: BBProject? { didSet { persistNewContext() } }
+    @Published var newThreadMode = false { didSet { persistNewContext() } }
+    @Published var pendingCreationID: UUID? { didSet { persistNewContext() } }
+    @Published var selectedProviderID: String? { didSet { persistNewContext() } }
+    @Published var selectedModelID: String? { didSet { persistNewContext() } }
+    @Published var selectedModelName: String? { didSet { persistNewContext() } }
+    @Published var captureStarting = false
+    @Published var fixtureRecording = false
+    @Published var fixtureStep = 0
+    var fixtureRequestID: UUID?
+    @Published var focusedDeliveryID: UUID?
+    @Published var recorderPresented = false
+    let fixtureScenario: String? = {
+        #if DEBUG && targetEnvironment(simulator)
+        ProcessInfo.processInfo.environment["BB_UI_FIXTURE"]
+        #else
+        nil
+        #endif
+    }()
+    var captureIsRecording: Bool { recorder.isRecording || fixtureRecording }
+    var isFixture: Bool { fixtureScenario != nil }
     let recorder = WatchRecorder()
     let playback = WatchPlayback()
     private(set) var store: DurableStore?
@@ -68,12 +88,19 @@ final class AppModel: ObservableObject {
     var chats: [ChatList.Row] { ChatList.build(threads: threads, projects: projects) }
 
     init() {
+        playback.canPlay = { [weak self] in self?.captureIsRecording != true && self?.captureStarting != true }
+        if let fixtureScenario {
+            do { store = try DurableStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("Glance-UI-Fixture-\(UUID().uuidString)")) }
+            catch { self.error = error.localizedDescription }
+            configureFixture(fixtureScenario); return
+        }
         do {
             let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("BBWatch")
             store = try DurableStore(directory: root)
             connection = try ConnectionSettings.load()
             reload()
             loadCache()
+            restoreNewContext()
         } catch { self.error = error.localizedDescription }
         Task { await WatchDiagnostics.shared.record(.appStarted) }
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -90,7 +117,7 @@ final class AppModel: ObservableObject {
     func reload() {
         guard let store else { return }
         do {
-            drafts = try store.loadDrafts().filter { $0.serverIdentity == nil || $0.serverIdentity == identity }
+            drafts = try store.resolveCreationDependencies().filter { $0.serverIdentity == nil || $0.serverIdentity == identity }
             // Transcription has no irreversible BB side effect; interrupted work can resume.
             for index in drafts.indices where drafts[index].state == .transcribing && drafts[index].recoveryIssue == nil && !sending.contains(drafts[index].id) {
                 drafts[index].state = .queued
@@ -132,7 +159,7 @@ final class AppModel: ObservableObject {
     var currentThread: BBThread? { currentThreadID.flatMap { id in threads.first { $0.id == id } } }
     /// Where the next recording goes: a new thread in the chosen project, else the current thread.
     var recordTarget: RecordingDestination? {
-        if let project = newThreadProject { return .project(id: project.id) }
+        if newThreadMode { return newThreadProject.map { .project(id: $0.id) } }
         return currentThreadID.map { .thread(id: $0) }
     }
     /// True while the screen is on and the app is in front; the stage loop sleeps otherwise.
@@ -140,7 +167,7 @@ final class AppModel: ObservableObject {
     /// Read-only polling has its own view lifetime, independent of sidebar/voice work.
     /// SwiftUI restarts this immediately on selection, send, connection or foreground changes.
     func watchStage() async {
-        guard foreground, connected else { return }
+        guard !isFixture, foreground, connected else { return }
         let revision = stageRevision
         while !Task.isCancelled {
             guard stageRevision == revision else { return }
@@ -171,7 +198,7 @@ final class AppModel: ObservableObject {
     }
     /// Sidebar failures or slow questions never postpone the current conversation.
     func watchSidebar() async {
-        guard foreground, connected else { return }
+        guard !isFixture, foreground, connected else { return }
         resumeQueuedDelivery()
         while !Task.isCancelled {
             // A cancelled prior foreground task may still be unwinding its request.
@@ -199,7 +226,7 @@ final class AppModel: ObservableObject {
     }
     /// Pick a sensible stage on first run: the most recently active visible chat.
     func adoptDefaultThread() {
-        guard currentThreadID == nil || currentThread == nil, let first = chats.max(by: { $0.activityAt < $1.activityAt }) else { return }
+        guard !newThreadMode, currentThreadID == nil, let first = chats.max(by: { $0.activityAt < $1.activityAt }) else { return }
         currentThreadID = first.id
     }
     func cancelQueue(_ id: UUID) {
@@ -247,21 +274,32 @@ final class AppModel: ObservableObject {
         } catch { self.error = "Recovery stopped because a part is missing, damaged, or has unconfirmed delivery. All originals were kept. \(error.localizedDescription)" }
     }
     func start(destination: RecordingDestination? = nil, existing: UUID? = nil) async {
-        guard activeID == nil else { return }
+        guard activeID == nil, !captureStarting else { return }
         playback.stop()
         do {
             var value = existing.flatMap(draft) ?? RecordingDraft(destination: destination)
             guard value.state == .draft || value.state == .failed else { return }
             guard !sending.contains(value.id), value.recoveryIssue == nil else { throw AppFailure.reviewRequired }
             value.state = .draft; value.enqueuedAt = nil
+            if existing == nil, case .project = destination {
+                value.creatingRequestID = pendingCreationID
+                value.providerID = selectedProviderID; value.modelID = selectedModelID; value.modelName = selectedModelName
+            }
             value.serverIdentity = connected ? identity : value.serverIdentity
             try save(value)
-            activeID = value.id
+            activeID = value.id; recorderPresented = true
             try await resume()
         } catch { activeID = nil; self.error = error.localizedDescription }
     }
     func resume() async throws {
-        guard let id = activeID, let value = draft(id), let store else { return }
+        guard !captureStarting, !captureIsRecording, let id = activeID, let value = draft(id), let store else { return }
+        if isFixture { fixtureRecording = true; return }
+        #if targetEnvironment(simulator)
+        throw AudioFailure.noInput
+        #else
+        captureStarting = true
+        defer { captureStarting = false }
+        playback.stop()
         guard !sending.contains(id), value.recoveryIssue == nil else { throw AppFailure.reviewRequired }
         capturePersistenceFailed = false
         let directory = try store.chunksDirectory(for: id)
@@ -272,6 +310,7 @@ final class AppModel: ObservableObject {
         if activeID != id || identity != captureIdentity {
             merge(recorder.pause(), into: id)
         }
+        #endif
     }
     private func merge(_ chunks: [AudioChunk], into id: UUID) {
         guard var value = draft(id) else { return }
@@ -286,6 +325,7 @@ final class AppModel: ObservableObject {
     }
     func pause() {
         guard let id = activeID else { return }
+        if isFixture { fixtureRecording = false; return }
         merge(recorder.pause(), into: id)
         if capturePersistenceFailed || recorder.finalizationFailed { captureFailures.insert(id) }
     }
@@ -293,18 +333,21 @@ final class AppModel: ObservableObject {
     func finish() -> UUID? {
         pause()
         guard !recorder.finalizationFailed, !capturePersistenceFailed else { error = recorder.error ?? error; return nil }
-        let id = activeID; activeID = nil; return id
+        let id = activeID; activeID = nil; recorderPresented = false; return id
     }
     func pair(code: String) async {
         do {
             pause(); activeID = nil
             let pairing = try await BBClient.redeem(code: code)
             let settings = ConnectionSettings(serverURL: pairing.serverURL, token: pairing.credential, machineID: pairing.machineId)
-            try settings.save(); connection = settings; projects = []; threads = []; questions = []; offlineCache = nil; lastSync = nil; reload(); loadCache(); await refresh()
+            try settings.save(); connection = settings
+            newThreadMode = false; newThreadProject = nil; selectedProviderID = nil; selectedModelID = nil; selectedModelName = nil; pendingCreationID = nil
+            currentThreadID = nil; focusedDeliveryID = nil; recorderPresented = false
+            projects = []; threads = []; questions = []; offlineCache = nil; lastSync = nil; reload(); loadCache(); await refresh()
         } catch { self.error = error.localizedDescription }
     }
     func refresh() async {
-        guard connected, !refreshing else { return }
+        guard !isFixture, connected, !refreshing else { return }
         let requestIdentity = identity
         let requestRevision = connectionRevision
         refreshing = true
@@ -365,21 +408,32 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func deliver(_ id: UUID, destination: RecordingDestination? = nil) async {
-        guard connected else { error = ConnectionError.notConnected.localizedDescription; return }
-        if activeID == id { pause() }
+    func deliver(_ id: UUID, destination: RecordingDestination? = nil, observe: Bool = true) async {
+        if isFixture { fixtureDeliver(id, destination: destination); return }
+        reload()
+        if activeID == id { guard finish() != nil else { return } }
         guard !captureFailures.contains(id) else { error = "Could not safely finish recording. The original was kept for recovery."; return }
         guard !sending.contains(id), var value = draft(id), value.state != .accepted, value.state != .checkingDelivery else { return }
         guard value.recoveryIssue == nil else { error = AppFailure.reviewRequired.localizedDescription; return }
         guard !value.chunks.isEmpty || value.transcript?.isEmpty == false else { error = "An empty recording can't be sent."; return }
         guard value.serverIdentity == nil || value.serverIdentity == identity else { error = "This recording belongs to a different BB connection."; return }
-        if let destination { value.destination = destination }
+        if let destination, value.enqueuedAt == nil { value.destination = destination }
         guard let destination = value.destination else { return }
         // Queue order is the Send order, independent of when the recordings were created.
-        value.serverIdentity = identity
+        value.serverIdentity = connected ? identity : value.serverIdentity
         if value.enqueuedAt == nil { value.enqueuedAt = Date() }
         do { value.state = .queued; try save(value) } catch { self.error = error.localizedDescription; return }
-        guard !drafts.contains(where: { $0.id != id && ($0.enqueuedAt ?? .distantFuture) < value.enqueuedAt! && $0.destination == destination && [.queued, .transcribing, .checkingDelivery, .failed].contains($0.state) }) else {
+        if observe {
+            focusedDeliveryID = id; recorderPresented = false
+            switch destination {
+            case .thread(let threadID): currentThreadID = threadID; newThreadMode = false; pendingCreationID = nil
+            case .project(let projectID):
+                newThreadMode = true; newThreadProject = projects.first { $0.id == projectID }
+                pendingCreationID = value.creatingRequestID ?? id
+            }
+        }
+        guard connected, value.creatingRequestID == nil else { return }
+        guard !RecordingQueue.isBlocked(value, by: drafts) else {
             error = "Finish the earlier send to this thread first."; return
         }
         let requestIdentity = identity
@@ -407,14 +461,17 @@ final class AppModel: ObservableObject {
                 let receipt = try await requestClient.send(text: text, threadID: threadID)
                 value.acceptanceReceipt = String(data: try JSONEncoder().encode(receipt), encoding: .utf8)
             case .project(let projectID):
-                let thread = try await requestClient.createThread(projectID: projectID, text: text)
+                let thread = try await requestClient.createThread(projectID: projectID, text: text, providerID: value.providerID, model: value.modelID)
                 value.destination = .thread(id: thread.id)
-                if identity == requestIdentity { currentThreadID = thread.id; newThreadProject = nil }
+                if identity == requestIdentity { followCreatedThread(thread, requestID: id) }
                 value.acceptanceReceipt = "Created thread with initial prompt: \(thread.id)"
             }
             await WatchDiagnostics.shared.record(.sendAccepted, operation: operation, foreground: foreground)
             value.state = .accepted
-            if identity == requestIdentity { try save(value); await refresh() }
+            if identity == requestIdentity {
+                if value.destination == currentThreadID.map({ .thread(id: $0) }) { stage = nil; stageRevision = UUID() }
+                try save(value); reload(); await refresh()
+            }
             else { try store?.saveDraft(value) }
         } catch {
             await WatchDiagnostics.shared.record(.deliveryFailed, operation: operation, foreground: foreground, error: error)
@@ -428,70 +485,27 @@ final class AppModel: ObservableObject {
         }
     }
     private func processQueue() async {
-        guard connected, !processingQueue else { return }
+        guard !isFixture, connected, !processingQueue else { return }
         processingQueue = true; defer { processingQueue = false }
         let queueIdentity = identity
-        let candidates = drafts.filter { $0.state == .queued && $0.serverIdentity == queueIdentity && $0.recoveryIssue == nil }.sorted { ($0.enqueuedAt ?? .distantPast) < ($1.enqueuedAt ?? .distantPast) }
-        for value in candidates {
-            guard identity == queueIdentity else { return }
-            guard !sending.contains(value.id), let destination = value.destination else { continue }
-            let blocked = drafts.contains { other in
-                other.id != value.id && other.destination == destination && (other.enqueuedAt ?? .distantFuture) < (value.enqueuedAt ?? .distantPast) && [.queued, .transcribing, .failed, .checkingDelivery].contains(other.state)
-            }
-            if !blocked { await deliver(value.id) }
+        var attempted = Set<UUID>()
+        while identity == queueIdentity,
+              let value = RecordingQueue.next(in: drafts, identity: queueIdentity, excluding: attempted.union(sending)) {
+            attempted.insert(value.id)
+            await deliver(value.id, observe: false)
         }
     }
+
     private func transcribe(_ draft: RecordingDraft, using requestClient: BBClient, identity requestIdentity: String, operation: DiagnosticOperation) async throws -> String {
         guard let store else { throw CocoaError(.fileReadUnknown) }
         let folder = try store.chunksDirectory(for: draft.id)
-        var results: [String] = []
-        // Group continuous checkpoints into ~30s transport files. Persist each result for retry.
-        var group: [AudioChunk] = []; var duration: TimeInterval = 0
-        for (index, chunk) in draft.chunks.enumerated() {
-            group.append(chunk); duration += chunk.duration
-            if duration >= 30 || index == draft.chunks.count - 1 {
-                // Include BOTH ends and count: extending a previous short group invalidates its cache.
-                let cache = folder.deletingLastPathComponent().appendingPathComponent("transcript-\(group.first!.filename)-\(group.last!.filename)-\(group.count).json")
-                if FileManager.default.fileExists(atPath: cache.path) {
-                    results.append(try JSONDecoder().decode(String.self, from: Data(contentsOf: cache)))
-                    await WatchDiagnostics.shared.record(.transcriptionCached, operation: operation, foreground: foreground, group: results.count - 1)
-                } else {
-                    let upload = folder.deletingLastPathComponent().appendingPathComponent("upload.wav")
-                    let chunks = group
-                    await WatchDiagnostics.shared.record(.assemblyStarted, operation: operation, foreground: foreground, group: results.count, count: chunks.count)
-                    try await Task.detached(priority: .utility) {
-                        try Self.assemble(chunks, folder: folder, output: upload)
-                    }.value
-                    await WatchDiagnostics.shared.record(.assemblyFinished, operation: operation, foreground: foreground, group: results.count)
-                    guard identity == requestIdentity else { throw AppFailure.connectionChanged }
-                    let bytes = (try? upload.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
-                    let audioMilliseconds = duration.isFinite && duration >= 0 && duration < Double(Int.max) / 1000 ? Int(duration * 1000) : nil
-                    await WatchDiagnostics.shared.record(.transcriptionStarted, operation: operation, foreground: foreground, group: results.count, bytes: bytes, audioMilliseconds: audioMilliseconds)
-                    let text = try await requestClient.transcribe(file: upload)
-                    await WatchDiagnostics.shared.record(.transcriptionFinished, operation: operation, foreground: foreground, group: results.count)
-                    guard identity == requestIdentity else { throw AppFailure.connectionChanged }
-                    try JSONEncoder().encode(text).write(to: cache, options: .atomic)
-                    try? FileManager.default.removeItem(at: upload)
-                    results.append(text)
-                }
-                group = []; duration = 0
+        let revision = connectionRevision
+        return try await TranscriptionPipeline.transcribe(draft.chunks, folder: folder, using: requestClient,
+                                                         operation: operation, foreground: foreground) { @MainActor [weak self] in
+            guard let self, self.identity == requestIdentity, self.connectionRevision == revision else {
+                throw AppFailure.connectionChanged
             }
         }
-        return results.joined(separator: "\n")
-    }
-    private nonisolated static func assemble(_ chunks: [AudioChunk], folder: URL, output: URL) throws {
-        var writer: AVAudioFile?
-        for chunk in chunks {
-            let reader = try AVAudioFile(forReading: folder.appendingPathComponent(chunk.filename))
-            if writer == nil { writer = try AVAudioFile(forWriting: output, settings: reader.processingFormat.settings) }
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: reader.processingFormat, frameCapacity: 4096) else { throw AppFailure.audio }
-            while reader.framePosition < reader.length {
-                try reader.read(into: buffer)
-                guard buffer.frameLength > 0 else { throw AppFailure.audio }
-                try writer?.write(from: buffer)
-            }
-        }
-        writer = nil
     }
     func choose(_ question: BBQuestion, option: BBOption) -> UUID? {
         do {
@@ -512,7 +526,7 @@ final class AppModel: ObservableObject {
         return (try? JSONEncoder().encode(fields).base64EncodedString()) ?? ""
     }
     private func commitAnswers() async {
-        guard connected, !answering, Date() >= nextAnswerAttempt, let store else { return }
+        guard !isFixture, connected, !answering, Date() >= nextAnswerAttempt, let store else { return }
         answering = true; defer { answering = false }
         let requestIdentity = identity
         let requestClient = client

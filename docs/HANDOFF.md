@@ -1,3 +1,51 @@
+# Glance 0.2.0 (2) — 2026-10-18
+
+The approved Glance design replaces the three-page Record/Stage/Threads shell.
+One thread header opens the chooser by tap or left swipe. New is a local
+Project/Model context; actual creation waits for explicit Send. Recording uses
+pause/red-circle resume, autosave and an icon-only send action. Questions,
+processing, messages and results share the main block with 200ms replacements;
+Reduce Motion is immediate. History includes destination and truthful status.
+See `../design.md` and product specification 1.2 for behavior and implementation.
+
+Local New followups persist their dependency on a creating request and resolve
+only to its confirmed same-identity thread ID. Independent New requests stay
+independent. Queue draining preserves per-thread order without offline spin;
+unknown acceptance cannot replay. Background delivery and late create/sidebar
+updates cannot steal an explicit selection. Model choices/defaults use the real
+BB catalog and create contract. Draft defaults do not inherit unrelated global
+model settings.
+
+Playback repairs cover asynchronous watch activation, recording/message source
+identity, scoped errors, ordered CAF completion, interruption and capture gates.
+Transcription now lives in `TranscriptionPipeline.swift`: one-pass PCM16 WAV,
+completed-segment caches, cancellation/identity validation and original retention.
+A real synthetic bilingual comparison validated complete text in two PCM16 calls
+with roughly half the Float32 upload bytes. Rejected AAC lost English words in
+both trials; no AAC path ships. This does not establish general ASR accuracy or
+physical watch/LTE latency. See `../specs/voice-delivery-latency.md`.
+
+Verification: final complete `./native/check.sh` passed after the last UI fix:
+12 core tests, HTTP/catalog/default/create, Chats, projection, real audio and
+PCM16/cache/transport checks, diagnostics, strict Swift 6 and both SDK builds.
+Eleven isolated simulator UI scenarios passed across final focused runs,
+including same-launch lifecycle changes, New followups/focus, modal hit targets,
+prior-question/New isolation, Undo, large text and Reduce Motion. Actual synthetic
+CAF playback and final PCM16 encoding also passed watch-simulator runtime checks.
+Lead inspected settled native screenshots. Independent integration review found
+no blocker. Signed development build, signature, version/icon metadata and target
+watch provisioning were verified.
+
+**Device update remains pending:** the paired watch is currently unavailable to
+CoreDevice (4016); the signed build has not yet been installed or launched on
+hardware. Installation must be in place, preserving the app container/Keychain.
+No uninstall or live agent test prompt was used. Full hardware microphone,
+speaker/headphones, interruptions, standalone LTE, power-loss and battery acceptance
+remain separate. A cheap-model summary gateway is not implemented; the compact
+view uses actual activity/source excerpts with full-original access.
+
+The entries below describe earlier builds and historical evidence.
+
 # Sync reliability repairs — 2026-10-17
 
 GitHub issues #1–#10 track the sync investigation and follow-up. Native repairs

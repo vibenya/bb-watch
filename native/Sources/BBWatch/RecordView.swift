@@ -1,153 +1,255 @@
 import SwiftUI
+import Accessibility
 
-/// Left page. Voice Memos discipline: one red control, a big clock, nothing else to decide.
-/// Tap the circle to start; tap it again to send. Pause stays a small secondary action.
-struct RecordView: View {
+struct GlanceView: View {
     @EnvironmentObject var model: AppModel
     @ObservedObject var recorder: WatchRecorder
-    @Binding var page: Page
-    @State private var pickTarget = false
-    @State private var picker = false
-
-    private var active: Bool { model.activeID != nil }
-    private var mood: Mood { recorder.isRecording ? .recording : (active ? .idle : .idle) }
-    private var targetLabel: String {
-        if let project = model.newThreadProject { return "New · \(project.name)" }
-        if let thread = model.currentThread { return thread.displayTitle }
-        return "Choose where to send"
+    @Binding var sheet: GlanceSheet?
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        systemReduceMotion || (model.isFixture && ProcessInfo.processInfo.environment["BB_UI_ACCESSIBILITY"] == "1")
+        #else
+        systemReduceMotion
+        #endif
     }
-
-    var body: some View {
-        ZStack {
-            Stage(mood: mood)
-            VStack(spacing: 0) {
-                Button { picker = true } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: model.newThreadProject == nil ? "arrow.turn.down.right" : "plus").font(.system(size: 10, weight: .bold))
-                        Kicker(text: targetLabel)
-                    }.frame(minHeight: 40)
-                }.buttonStyle(.plain).disabled(active)
-                Spacer(minLength: 0)
-                Text(durationLabel(recorder.elapsed))
-                    .font(.poster(46).monospacedDigit())
-                    .foregroundStyle(recorder.isRecording ? .white : .white.opacity(active ? 0.9 : 0.35))
-                    .contentTransition(.numericText())
-                    .animation(.linear(duration: 0.2), value: recorder.elapsed)
-                Text(recorder.isRecording ? "RECORDING" : active ? "PAUSED" : "TAP TO RECORD")
-                    .font(.kicker).tracking(1.2).foregroundStyle(recorder.isRecording ? Mood.recording.tint : .secondary)
-                    .contentTransition(.interpolate)
-                Spacer(minLength: 0)
-                HStack(spacing: 12) {
-                    if active {
-                        SmallGlass(symbol: recorder.isRecording ? "pause.fill" : "mic.fill", label: recorder.isRecording ? "Pause" : "Resume") { toggle() }
-                    }
-                    RecordButton(recording: recorder.isRecording, active: active, level: recorder.level) { primary() }
-                    if active {
-                        SmallGlass(symbol: "tray.and.arrow.down", label: "Save without sending") { save() }
-                    }
-                }
-                .animation(.snappy, value: active)
-                if let error = recorder.error ?? (active ? nil : nil) {
-                    Text(error).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
-                }
-            }
-            .padding(.horizontal, 10).padding(.top, 10).padding(.bottom, 12)
-        }
-        .sheet(isPresented: $picker) { TargetPicker() }
-    }
-
-    private func primary() {
-        if active { send() } else {
-            haptic(.click)
-            Task { await model.start(destination: model.recordTarget) }
-        }
-    }
-    private func toggle() {
-        if recorder.isRecording { model.pause() }
-        else { Task { do { try await model.resume() } catch { model.error = error.localizedDescription } } }
-    }
-    private func send() {
-        guard let id = model.finish() else { return }
-        guard let target = model.draft(id)?.destination ?? model.recordTarget else { picker = true; return }
-        haptic(.success)
-        withAnimation(.snappy) { page = .stage }
-        Task { await model.deliver(id, destination: target) }
-    }
-    /// Keep the audio on the watch without sending; it stays in Recordings.
-    private func save() {
-        _ = model.finish(); haptic(.stop)
-    }
-}
-
-/// The hero control. Idle: a red disc with a mic. Recording: a white disc with an arrow,
-/// wrapped in a volt ring that breathes with the input level.
-private struct RecordButton: View {
-    var recording: Bool
-    var active: Bool
-    var level: Float
-    var action: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.isLuminanceReduced) private var dimmed
+    @ScaledMetric(relativeTo: .callout) private var bodyHeight = 72.0
+    @ScaledMetric(relativeTo: .callout) private var textSize = 16.0
+    private var blockRevision: String {
+        if capturing { return "capture-\(model.activeID!.uuidString)-\(model.captureIsRecording)-\(model.captureStarting)" }
+        if let pending { return "answer-\(pending.id)-\(pending.status.rawValue)" }
+        if let question { return "question-\(question.id)-\(question.prompt)" }
+        return contextIsNew && model.currentDelivery == nil ? "new" : model.recorderPresented ? "recorder" : "content"
+    }
+    private var question: BBQuestion? {
+        guard !contextIsNew else { return nil }
+        return model.questions.first { $0.threadID == model.currentThreadID }
+    }
+    private var pending: PendingAnswer? {
+        guard !contextIsNew else { return nil }
+        return model.pending.first { $0.threadID == model.currentThreadID && $0.status != .accepted }
+    }
+    private var capturing: Bool { model.activeID != nil }
+    private var presentation: GlancePresentation { model.presentation }
+    private var contextIsNew: Bool {
+        if capturing { if case .project = model.activeDraft?.destination { return true }; return model.activeDraft?.destination == nil }
+        return model.newThreadMode
+    }
+    private var headerSymbol: String {
+        if capturing { return model.captureIsRecording ? "mic.fill" : "pause.circle" }
+        if model.newThreadMode && model.currentDelivery == nil { return "plus.circle" }
+        if question != nil || pending != nil { return "questionmark.circle" }
+        return presentation.symbol
+    }
+    private var announcement: String {
+        if capturing { return model.captureStarting ? "Starting microphone" : model.captureIsRecording ? "Recording" : "Recording paused" }
+        if let pending { return pending.status == .waiting ? "Answer selected. Undo is available for ten seconds." : pending.error == nil ? "Sending answer" : "Answer delivery unconfirmed" }
+        if question != nil && model.currentDelivery == nil { return "Question from BB" }
+        if contextIsNew && model.currentDelivery == nil { return "New thread" }
+        return presentation.status
+    }
     var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                Button { sheet = .threads } label: {
+                    HStack(spacing: 9) {
+                        Image(systemName: headerSymbol).font(.title3)
+                            .foregroundStyle(capturing ? .red : GlanceStyle.lime)
+                            .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
+                            .frame(width: 26)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.contextTitle).privacySensitive().font(.glance.weight(.medium)).lineLimit(1)
+                            if let timestamp = model.contextThread?.updatedAt {
+                                Text(relativeLabel(timestamp)).font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).padding(.horizontal, 9).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).background(GlanceStyle.surface, in: RoundedRectangle(cornerRadius: 15))
+                .accessibilityLabel("Choose thread")
+                .accessibilityValue(model.contextTitle + ", " + (capturing ? (model.captureIsRecording ? "Recording" : "Paused") : contextIsNew && model.currentDelivery == nil ? "New thread" : presentation.status))
+                .animation(reduceMotion || dimmed ? nil : .easeInOut(duration: 0.2), value: headerSymbol)
+
+                if capturing {
+                    captureBlock.transition(.opacity)
+                    if contextIsNew && model.activeDraft?.creatingRequestID == nil {
+                        newContext
+                    }
+                } else {
+                    if contextIsNew && model.currentDelivery == nil { newContext }
+                    else if model.recorderPresented {
+                        Text("Ready when you are.").font(.glance).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, minHeight: bodyHeight, alignment: .leading)
+                    } else {
+                        workingBlock
+                            .frame(maxWidth: .infinity, minHeight: bodyHeight, alignment: .topLeading)
+                    }
+                    IconAction(symbol: "mic.fill", label: question == nil ? "Record" : "Record voice", prominent: true) {
+                        Task { await model.start(destination: model.recordTarget) }
+                    }.disabled(model.captureStarting)
+                }
+                Button { sheet = .recordings } label: {
+                    HStack { Text("Recordings"); Spacer(); Image(systemName: "chevron.right") }.font(.caption).foregroundStyle(.secondary).frame(minHeight: 44).contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                ForEach(Array(model.drafts.reversed().prefix(5))) { draft in
+                    NavigationLink { DraftDetail(id: draft.id) } label: { RecordingRow(draft: draft).padding(9).contentShape(Rectangle()) }
+                        .buttonStyle(.plain).background(GlanceStyle.surface, in: RoundedRectangle(cornerRadius: 14))
+                }
+                #if DEBUG && targetEnvironment(simulator)
+                if model.fixtureScenario == "lifecycle" {
+                    Button("Advance fixture") { model.advanceFixture() }.accessibilityIdentifier("Advance fixture")
+                }
+                #endif
+                HStack {
+                    Button { sheet = .detail } label: { Image(systemName: "text.bubble").frame(maxWidth: .infinity, minHeight: 44) }
+                        .accessibilityLabel("Full conversation").disabled(model.currentThreadID == nil)
+                    Button { sheet = .settings } label: { Image(systemName: model.connected ? "gearshape" : "link").frame(maxWidth: .infinity, minHeight: 44) }
+                        .accessibilityLabel(model.connected ? "Settings" : "Connect BB")
+                }.buttonStyle(.bordered).tint(GlanceStyle.surface).foregroundStyle(.white)
+            }
+            .animation(reduceMotion || dimmed ? nil : .easeInOut(duration: 0.2), value: blockRevision)
+            .padding(.horizontal, 8).padding(.top, 2).padding(.bottom, 16)
+        }
+        .background(Color.black)
+        .accessibilityHidden(sheet != nil)
+        .onChange(of: announcement) { _, status in
+            guard model.foreground, sheet == nil else { return }
+            AccessibilityNotification.Announcement(status).post()
+        }
+        .simultaneousGesture(DragGesture(minimumDistance: 35).onEnded { value in
+            if value.translation.width < -55 && abs(value.translation.width) > abs(value.translation.height) * 1.7 { sheet = .threads }
+        })
+    }
+    private var newContext: some View {
+        VStack(spacing: 6) {
+            selector("Project", value: model.contextProject?.name ?? "Choose project") { sheet = .projects }
+            selector("Model", value: model.contextModelName) { sheet = .models }
+        }
+    }
+    private func selector(_ title: String, value: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.glance)
+                    Text(value).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 3)
+                Image(systemName: "chevron.right").font(.caption2)
+            }.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+        }.buttonStyle(.plain).padding(.horizontal, 10).background(GlanceStyle.surface, in: RoundedRectangle(cornerRadius: 14)).foregroundStyle(.white).accessibilityIdentifier(title + " selector")
+    }
+    @ViewBuilder private var workingBlock: some View {
+        if let pending { AnswerUndo(answer: pending).transition(.opacity) }
+        else if let question, model.currentDelivery == nil { QuestionBlock(question: question).transition(.opacity) }
+        else {
+            Button { sheet = model.currentDelivery == nil ? .detail : .recordings } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(presentation.text.trimmingCharacters(in: .whitespacesAndNewlines)).privacySensitive()
+                        .font(.system(size: textSize, design: .rounded)).lineLimit(typeSize.isAccessibilitySize ? nil : presentation.detail == nil ? 4 : 3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let detail = presentation.detail { Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(typeSize.isAccessibilitySize ? nil : 2).fixedSize(horizontal: false, vertical: true) }
+                }
+                .contentShape(Rectangle())
+                .id(presentation)
+                .transition(.opacity)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(presentation.text + (presentation.detail.map { ". " + $0 } ?? ""))
+            .accessibilityHint("Opens full text and playback")
+            .animation(reduceMotion || dimmed ? nil : .easeInOut(duration: 0.2), value: presentation)
+        }
+    }
+    private var captureBlock: some View {
+        VStack(spacing: 8) {
             ZStack {
-                Circle().stroke(Mood.recording.tint.opacity(recording && !dimmed ? 0.9 : 0), lineWidth: 3)
-                    .scaleEffect(1 + CGFloat(level) * 0.45)
-                    .opacity(Double(1 - level * 0.6))
-                    .animation(.easeOut(duration: 0.12), value: level)
-                Circle().fill(active ? Color.white : Mood.recording.tint)
-                    .frame(width: 66, height: 66)
-                    .shadow(color: (active ? Color.white : Mood.recording.tint).opacity(0.5), radius: recording ? 14 : 6)
-                Image(systemName: active ? "arrow.up" : "mic.fill")
-                    .font(.system(size: 26, weight: .black))
-                    .foregroundStyle(active ? .black : .white)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .frame(width: 84, height: 84)
+                Waveform(level: recorder.level, recording: model.captureIsRecording && !dimmed && model.foreground && sheet == nil)
+                    .frame(height: 70).accessibilityHidden(true)
+                HStack {
+                    if !model.captureIsRecording {
+                        Button { _ = model.finish() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                            .buttonStyle(.plain).background(GlanceStyle.surface, in: Circle()).foregroundStyle(.white)
+                            .accessibilityLabel("Close recording, keep saved audio").disabled(model.captureStarting)
+                    } else { Color.clear.frame(width: 44, height: 44) }
+                    Spacer(minLength: 2)
+                    Button {
+                        if model.captureIsRecording { model.pause() }
+                        else { Task { do { try await model.resume() } catch { model.error = error.localizedDescription } } }
+                    } label: {
+                        ZStack {
+                            Circle().fill(Color.black).overlay { Circle().stroke(.red.opacity(0.45), lineWidth: 2) }
+                            if model.captureStarting { ProgressView().tint(.red) }
+                            else { Image(systemName: model.captureIsRecording ? "pause.fill" : "circle.fill").font(.system(size: 27, weight: .bold)).foregroundStyle(.red).contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace)) }
+                        }.frame(width: 68, height: 68)
+                    }.buttonStyle(.plain).disabled(model.captureStarting)
+                        .accessibilityLabel(model.captureStarting ? "Starting microphone" : model.captureIsRecording ? "Pause recording" : "Resume recording")
+                    Spacer(minLength: 2)
+                    Color.clear.frame(width: 44, height: 44)
+                }
+            }.frame(minHeight: 76)
+            if let error = recorder.error { Text(error).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            IconAction(symbol: "arrow.up", label: "Send recording", prominent: true) {
+                model.pause()
+                guard let id = model.activeID else { return }
+                guard model.activeDraft?.destination != nil else { sheet = .threads; return }
+                guard model.finish() != nil else { return }
+                Task { await model.deliver(id) }
+            }.disabled(model.captureStarting)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(active ? "Send" : "Record")
-        .accessibilityHint(active ? "Sends the recording" : "Starts recording")
     }
 }
 
-private struct SmallGlass: View {
-    var symbol: String
-    var label: String
-    var action: () -> Void
+/// Bounded redraws come from the recorder's input meter, never an animation timer.
+private struct Waveform: View {
+    let level: Float
+    let recording: Bool
     var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 15, weight: .bold)).frame(width: 40, height: 40)
+        GeometryReader { proxy in
+            Path { path in
+                for index in 0..<32 {
+                    let x = proxy.size.width * CGFloat(index) / 31
+                    let amplitude = recording ? CGFloat(max(0.03, level)) : 0.08
+                    let height = 3 + amplitude * (index.isMultiple(of: 3) ? 55.0 : 32.0)
+                    path.move(to: CGPoint(x: x, y: proxy.size.height / 2 - height / 2))
+                    path.addLine(to: CGPoint(x: x, y: proxy.size.height / 2 + height / 2))
+                }
+            }.stroke(.red.opacity(recording ? 0.9 : 0.35), style: StrokeStyle(lineWidth: 2, lineCap: .round))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .glassEffect(.regular.interactive(), in: .circle)
-        .transition(.scale.combined(with: .opacity))
     }
 }
-
-/// Where the next recording goes: reply to a chat, or start a new thread in a project.
-struct TargetPicker: View {
+struct QuestionBlock: View {
     @EnvironmentObject var model: AppModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var search = ""
+    let question: BBQuestion
     var body: some View {
-        List {
-            Section("New thread") {
-                ForEach(model.projects) { project in
-                    Button {
-                        model.newThreadProject = project; dismiss()
-                    } label: { Label(project.name, systemImage: "plus").font(.system(size: 15, weight: .semibold)) }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(question.prompt).privacySensitive().font(.glance).fixedSize(horizontal: false, vertical: true)
+            if model.questionsError != nil { Text("Saved question · will check before sending").font(.caption2).foregroundStyle(.secondary) }
+            if question.supported {
+                ForEach(question.options) { option in
+                    GlassButton(title: option.label) { _ = model.choose(question, option: option); haptic(.click) }.privacySensitive().disabled(!model.connected)
                 }
-            }
-            Section("Reply to") {
-                ForEach(ChatList.filtered(model.chats, query: search).sorted { $0.activityAt > $1.activityAt }) { chat in
-                    Button {
-                        model.currentThreadID = chat.id; model.newThreadProject = nil; dismiss()
-                    } label: { ThreadRow(chat: chat, current: chat.id == model.currentThreadID) }
+            } else { Text("Open BB to answer this question, or record a voice clarification.").font(.footnote).foregroundStyle(.secondary) }
+        }
+    }
+}
+struct AnswerUndo: View {
+    @EnvironmentObject var model: AppModel
+    let answer: PendingAnswer
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(answer.choiceLabel ?? answer.choice).privacySensitive().font(.glance).fixedSize(horizontal: false, vertical: true)
+            if answer.status == .waiting {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let remaining = max(0, Int(ceil(answer.deadline.timeIntervalSince(context.date))))
+                    Text(remaining > 0 ? "Sending in \(remaining)s" : "Waiting to confirm question").font(.caption2).foregroundStyle(.secondary)
+                    GlassButton(title: "Undo", symbol: "arrow.uturn.backward") { model.cancel(answer.id) }
                 }
+            } else {
+                Text(answer.error != nil ? "Answer delivery unconfirmed. Check BB before trying again." : "Sending answer").font(.footnote).foregroundStyle(.secondary)
             }
         }
-        .searchable(text: $search)
-        .containerBackground(.black.gradient, for: .navigation)
     }
 }

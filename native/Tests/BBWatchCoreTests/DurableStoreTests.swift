@@ -12,7 +12,7 @@ final class DurableStoreTests: XCTestCase {
     func testReopenRetainsQueueDestinationTranscriptAndOriginalUntilExplicitDeletion() throws {
         let root = try temporaryDirectory()
         let store = try DurableStore(directory: root)
-        let draft = RecordingDraft(duration: 31, state: .queued, destination: .thread(id: "thread-1"), chunks: [AudioChunk(filename: "0001.caf", duration: 31)], serverIdentity: "https://bb.example/account-1", transcript: "Send this complete sentence")
+        let draft = RecordingDraft(duration: 31, state: .queued, destination: .thread(id: "thread-1"), chunks: [AudioChunk(filename: "0001.caf", duration: 31)], serverIdentity: "https://bb.example/account-1", transcript: "Send this complete sentence", providerID: "real-provider", modelID: "wire-model", modelName: "Display name")
         let audio = try store.chunksDirectory(for: draft.id).appendingPathComponent("0001.caf")
         try Data([1, 2, 3]).write(to: audio)
         try store.saveDraft(draft)
@@ -25,6 +25,68 @@ final class DurableStoreTests: XCTestCase {
         try reopened.deleteDraft(id: draft.id)
         XCTAssertTrue(try reopened.loadDrafts().isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: audio.path))
+    }
+
+    func testLegacyDraftWithoutModelFieldsStillOpens() throws {
+        let root = try temporaryDirectory()
+        let store = try DurableStore(directory: root)
+        let id = UUID()
+        let folder = try store.chunksDirectory(for: id).deletingLastPathComponent()
+        let metadata = """
+        {"id":"\(id.uuidString)","createdAt":0,"duration":0,"state":"draft","chunks":[],"destination":{"project":{"id":"existing-project"}}}
+        """
+        try Data(metadata.utf8).write(to: folder.appendingPathComponent("metadata.json"))
+        let draft = try XCTUnwrap(store.loadDrafts().first)
+        XCTAssertNil(draft.recoveryIssue)
+        XCTAssertNil(draft.providerID)
+        XCTAssertNil(draft.modelID)
+        XCTAssertEqual(draft.destination, .project(id: "existing-project"))
+    }
+
+    func testFollowupWaitsForConfirmedCreationAcrossRelaunchAndAccount() throws {
+        let root = try temporaryDirectory()
+        let store = try DurableStore(directory: root)
+        var parent = RecordingDraft(state: .checkingDelivery, destination: .project(id: "project"), serverIdentity: "account-A")
+        let followup = RecordingDraft(state: .queued, destination: .project(id: "project"), serverIdentity: "account-A", transcript: "Continue this task", creatingRequestID: parent.id)
+        let otherAccount = RecordingDraft(state: .queued, destination: .project(id: "project"), serverIdentity: "account-B", creatingRequestID: parent.id)
+        let independentNew = RecordingDraft(state: .queued, destination: .project(id: "project"), serverIdentity: "account-A")
+        for value in [parent, followup, otherAccount, independentNew] { try store.saveDraft(value) }
+        let reopened = try DurableStore(directory: root)
+        XCTAssertEqual(try reopened.resolveCreationDependencies().first { $0.id == followup.id }?.creatingRequestID, parent.id)
+        parent.state = .failed; try reopened.saveDraft(parent)
+        XCTAssertEqual(RecordingQueue.next(in: try reopened.loadDrafts(), identity: "account-A", excluding: [])?.id, independentNew.id)
+        XCTAssertEqual(try reopened.resolveCreationDependencies().first { $0.id == followup.id }?.creatingRequestID, parent.id)
+        parent.state = .accepted; parent.destination = .thread(id: "actual-server-child-id"); parent.acceptanceReceipt = "server create receipt"
+        try reopened.saveDraft(parent)
+        let resolved = try DurableStore(directory: root).resolveCreationDependencies()
+        let next = try XCTUnwrap(resolved.first { $0.id == followup.id })
+        XCTAssertEqual(next.destination, .thread(id: "actual-server-child-id"))
+        XCTAssertNil(next.creatingRequestID)
+        XCTAssertEqual(next.state, .queued)
+        XCTAssertEqual(resolved.first { $0.id == otherAccount.id }?.creatingRequestID, parent.id)
+        XCTAssertEqual(resolved.first { $0.id == independentNew.id }?.destination, .project(id: "project"))
+        XCTAssertEqual(try DurableStore(directory: root).loadDrafts().first { $0.id == followup.id }, next)
+    }
+
+    func testQueueDrainsResolvedFollowupAndDoesNotSpinOnOfflineAttempt() throws {
+        let store = try DurableStore(directory: temporaryDirectory())
+        let now = Date()
+        var parent = RecordingDraft(enqueuedAt: now, state: .queued, destination: .project(id: "p"), serverIdentity: "account")
+        let child = RecordingDraft(enqueuedAt: now.addingTimeInterval(1), state: .queued, destination: .project(id: "p"), serverIdentity: "account", creatingRequestID: parent.id)
+        try store.saveDraft(parent); try store.saveDraft(child)
+        var attempted = Set<UUID>()
+        XCTAssertEqual(RecordingQueue.next(in: try store.loadDrafts(), identity: "account", excluding: attempted)?.id, parent.id)
+        attempted.insert(parent.id)
+        XCTAssertNil(RecordingQueue.next(in: try store.loadDrafts(), identity: "account", excluding: attempted))
+        // The preceding network await returns a real create receipt in this pass.
+        parent.state = .accepted; parent.destination = .thread(id: "actual-thread"); parent.acceptanceReceipt = "receipt"
+        try store.saveDraft(parent)
+        let latest = try store.resolveCreationDependencies()
+        XCTAssertEqual(RecordingQueue.next(in: latest, identity: "account", excluding: attempted)?.id, child.id)
+        attempted.insert(child.id)
+        XCTAssertNil(RecordingQueue.next(in: latest, identity: "account", excluding: attempted))
+        // A fresh wake-up can retry the safely queued offline child once.
+        XCTAssertEqual(RecordingQueue.next(in: latest, identity: "account", excluding: [])?.destination, .thread(id: "actual-thread"))
     }
 
     func testCorruptionPreservesBytesAndDoesNotHideOtherDraftsOrOrphanAudio() throws {

@@ -1,3 +1,50 @@
+# Glance release validation — 2026-10-18
+
+Version 0.2.0 (2), Xcode 27.1, watchOS 26+ target; watchOS 26.1 Ultra 2 simulator.
+Final `./native/check.sh` passed after the prior-question/New isolation fix:
+12 core tests, HTTP catalog/default/create plus transport invariants, Chats,
+source-backed presentation, ordered original audio checkpoints, PCM16 transcription
+cache/auth/cancellation/identity/cleanup, bounded diagnostics, strict Swift 6,
+watchOS build and ad-hoc signed simulator build.
+
+Eleven isolated DEBUG simulator scenarios passed across final focused runs.
+Continuous same-launch request transitions show transcription → sending → actual
+new ID/receipt → activity → reply; microphone remains available. Other checks
+cover pause/resume/retarget, unchanged observation before Send, New configuration,
+real modal history and full hit targets, Undo, left-swipe/dismiss, creation followups,
+late-focus preservation, old pending answer vs New processing, large text/Reduce
+Motion and offline/stale/failure/unknown/unsupported states. The tests use synthetic
+fixtures and never dispatch a live agent prompt or use AVAudioEngine input.
+Lead visually inspected final native working/New/capture/paused/history/question,
+stale, accessibility and lifecycle screenshots. They are local ignored/private
+verification artifacts rather than redistributed artwork.
+
+`check-playback.sh` passed on a real watch-simulator process with synthetic CAFs:
+empty/missing/corrupt rejection, ordered multi-part completion, pause/resume,
+late activation/delegate guards, route loss/interruption, capture gating and
+unchanged original bytes. Final PCM16 encoder-only watch-runtime check passed
+30s/15 ordered checkpoints within two LSBs, source-rate preservation, failed-source
+cleanup and unchanged originals. Custom URLProtocol transport fixtures run on
+macOS; watchOS does not reliably intercept them. Fixture hosts fail closed.
+
+Six bounded real ASR calls used only generic OS-TTS bilingual speech through the
+official BB CLI. Original Float32 WAV and shipping PCM16 each returned 44/44 words
+in both trials; PCM16 reduced upload bytes 49.94%. Its two CLI durations were
+2.829s/1.778s versus 3.716s/3.229s; small N and host networking do not establish a
+stable watch/LTE latency improvement. AAC omitted the English part twice and was
+removed. Detailed limits and reproduction: `../specs/voice-delivery-latency.md`.
+
+Independent integration advisor found no actionable blocker after the full gate.
+Signed development build passed; codesign, 0.2.0/2 metadata, AppIcon and provisioning
+for the target watch were checked. **No new physical install/launch is claimed:**
+CoreDevice reports the paired watch unavailable (4016). In-place installation and
+post-install health/recording retention checks remain pending availability.
+Physical audibility, microphone, interruptions, network recovery, standalone LTE,
+long-duration/power-loss/battery and general recognition quality remain unverified.
+The hosted summary gateway is not part of this build; UI excerpts remain source-backed.
+
+The following sections are historical validation of earlier builds.
+
 # Validation — 2026-10-16
 
 Environment: Xcode 26.1.1, Swift 6.2.1, watchOS 26.1 SDK/runtime. Deployment target watchOS 26. No claim of watchOS 27 visual acceptance.
@@ -95,3 +142,13 @@ date/time/timezone and fractional seconds. The complete native check was rerun
 after both repairs and passed, including both SDK builds. Simulator observation
 showed selected-thread publication preceding completion of sidebar refresh;
 this is a local observation, not a latency benchmark.
+
+## 2026-10-17 — lime icon and sync repair device update
+
+Built current main `7f8f0ce` with the user-selected lime bracelet icon as an opaque 1024 × 1024 PNG. Device-specific signed Xcode build succeeded. Installed in place on the paired physical Apple Watch Ultra 2; `devicectl` confirmed installation and launch of `dev.tokenville.bbwatch`. This includes the sync repairs documented above. No uninstall or live test prompt was performed. Visual icon appearance and interactive sync reliability after this installation remain unmeasured on hardware.
+
+### Icon packaging correction
+
+The first lime installation above did **not** contain a usable app icon: its catalog entry used `idiom: watch` with the single-size format, producing `unassigned child` warnings and no `CFBundleIcons` metadata. Installation/launch success did not establish icon packaging. Changed the single-size entry to `idiom: universal` with `platform: watchos`. A subsequent signed device build succeeded without those warnings. Checked the built Info.plist names `AppIcon` as its primary icon and `assetutil --info` confirms an opaque 1024 × 1024 watch `Icon Image` rendition in Assets.car. Physical icon appearance still needs direct observation after the corrected installation.
+
+Corrected package installation and process launch on the physical Ultra 2 both succeeded. Independent review passed. This establishes corrected packaging and device install/launch; visual Home Screen confirmation remains pending.

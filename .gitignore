@@ -14,6 +14,7 @@ native/BBWatch.xcodeproj/
 .build/
 .swiftpm/
 native/.build-xcode*/
+native/.build-glance*/
 native/build/
 
 # Private runtime data and signing material

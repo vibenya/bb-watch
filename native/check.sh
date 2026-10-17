@@ -33,10 +33,23 @@ run chat-list-compile swiftc -swift-version 6 \
     -o "$TMP_DIR/ChatListCheck"
 run chat-list-check "$TMP_DIR/ChatListCheck"
 
+run glance-presentation-compile swiftc -swift-version 6 \
+    Sources/BBWatchCore/DurableStore.swift Sources/BBWatch/BBClient.swift \
+    Sources/BBWatch/GlancePresentation.swift Checks/GlancePresentationCheck.swift \
+    -o "$TMP_DIR/GlancePresentationCheck"
+run glance-presentation-check "$TMP_DIR/GlancePresentationCheck"
+
 run audio-check-compile swiftc -swift-version 6 \
     Sources/BBWatchCore/DurableStore.swift Sources/BBWatch/AudioWriter.swift \
     Checks/AudioCheckpointCheck.swift -o "$TMP_DIR/AudioCheckpointCheck"
 run audio-check "$TMP_DIR/AudioCheckpointCheck"
+
+run transcription-compile swiftc -swift-version 6 \
+    Sources/BBWatchCore/DurableStore.swift Sources/BBWatch/BBClient.swift \
+    Sources/BBWatch/Diagnostics.swift Sources/BBWatch/TranscriptionPipeline.swift \
+    Checks/TranscriptionWireFixture.swift Checks/TranscriptionCheck.swift \
+    -o "$TMP_DIR/TranscriptionCheck"
+run transcription-check "$TMP_DIR/TranscriptionCheck"
 
 run diagnostics-compile swiftc -swift-version 6 \
     Sources/BBWatch/Diagnostics.swift Checks/DiagnosticsCheck.swift \

@@ -22,8 +22,35 @@ public struct RecordingDraft: Codable, Identifiable, Equatable, Sendable {
     public var error: String?
     public var messageId: String?
     public var acceptanceReceipt: String?
-    public init(id: UUID = UUID(), createdAt: Date = Date(), duration: TimeInterval = 0, enqueuedAt: Date? = nil, state: RecordingState = .draft, destination: RecordingDestination? = nil, chunks: [AudioChunk] = [], serverIdentity: String? = nil, recoveryIssue: String? = nil, previousTranscript: String? = nil, transcript: String? = nil, error: String? = nil, messageId: String? = nil, acceptanceReceipt: String? = nil) {
+    public var creatingRequestID: UUID?
+    public var providerID: String?
+    public var modelID: String?
+    public var modelName: String?
+    public init(id: UUID = UUID(), createdAt: Date = Date(), duration: TimeInterval = 0, enqueuedAt: Date? = nil, state: RecordingState = .draft, destination: RecordingDestination? = nil, chunks: [AudioChunk] = [], serverIdentity: String? = nil, recoveryIssue: String? = nil, previousTranscript: String? = nil, transcript: String? = nil, error: String? = nil, messageId: String? = nil, acceptanceReceipt: String? = nil, creatingRequestID: UUID? = nil, providerID: String? = nil, modelID: String? = nil, modelName: String? = nil) {
         self.id = id; self.createdAt = createdAt; self.duration = duration; self.enqueuedAt = enqueuedAt; self.state = state; self.destination = destination; self.chunks = chunks; self.serverIdentity = serverIdentity; self.recoveryIssue = recoveryIssue; self.previousTranscript = previousTranscript; self.transcript = transcript; self.error = error; self.messageId = messageId; self.acceptanceReceipt = acceptanceReceipt
+        self.creatingRequestID = creatingRequestID
+        self.providerID = providerID; self.modelID = modelID; self.modelName = modelName
+    }
+}
+/// Re-evaluated after every await: a create receipt can unblock follow-ups, while
+/// attempted IDs prevent a transient offline queue from spinning in one pass.
+enum RecordingQueue {
+    static func next(in drafts: [RecordingDraft], identity: String, excluding: Set<UUID>) -> RecordingDraft? {
+        drafts.filter {
+            $0.state == .queued && $0.serverIdentity == identity && $0.recoveryIssue == nil &&
+            $0.creatingRequestID == nil && $0.destination != nil && !excluding.contains($0.id)
+        }.sorted { ($0.enqueuedAt ?? .distantPast) < ($1.enqueuedAt ?? .distantPast) }.first { !isBlocked($0, by: drafts) }
+    }
+    static func isBlocked(_ candidate: RecordingDraft, by drafts: [RecordingDraft]) -> Bool {
+        if candidate.creatingRequestID != nil { return true }
+        // Two explicit New intents in one project are different recipients.
+        guard case .thread = candidate.destination else { return false }
+        return drafts.contains { other in
+            other.id != candidate.id && other.serverIdentity == candidate.serverIdentity &&
+            other.destination == candidate.destination &&
+            (other.enqueuedAt ?? .distantFuture) < (candidate.enqueuedAt ?? .distantPast) &&
+            [.queued, .transcribing, .checkingDelivery, .failed].contains(other.state)
+        }
     }
 }
 public enum PendingAnswerStatus: String, Codable, Sendable { case waiting, committing, accepted, failed }
@@ -150,6 +177,23 @@ public final class DurableStore {
             drafts.append(draft)
         }
         return drafts.sorted { $0.createdAt < $1.createdAt }
+    }
+    /// Resolve a local New conversation only from its confirmed create receipt.
+    /// An unknown/failed create, or another account's receipt, never unlocks a send.
+    public func resolveCreationDependencies() throws -> [RecordingDraft] {
+        var drafts = try loadDrafts()
+        let byID = Dictionary(uniqueKeysWithValues: drafts.map { ($0.id, $0) })
+        for index in drafts.indices {
+            guard let parentID = drafts[index].creatingRequestID,
+                  let parent = byID[parentID], parent.state == .accepted,
+                  parent.serverIdentity != nil, parent.serverIdentity == drafts[index].serverIdentity,
+                  case .thread = parent.destination,
+                  [.draft, .queued, .failed].contains(drafts[index].state) else { continue }
+            drafts[index].destination = parent.destination
+            drafts[index].creatingRequestID = nil
+            try saveDraft(drafts[index])
+        }
+        return drafts
     }
     public func deleteDraft(id: UUID) throws {
         let url = draftDirectory(id)

@@ -7,6 +7,7 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var authCalls = 0
     nonisolated(unsafe) static var rejectProjects = 0
     nonisolated(unsafe) static var sends = 0
+    nonisolated(unsafe) static var creates = 0
     nonisolated(unsafe) static var projectCalls = 0
     nonisolated(unsafe) static var projectFailures: [URLError.Code] = []
     nonisolated(unsafe) static var authenticated = false
@@ -57,6 +58,33 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
                     return
                 }
                 switch path {
+                case "/api/v1/system/execution-options":
+                    let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems ?? []
+                    if query.contains(URLQueryItem(name: "providerId", value: "unavailable")) {
+                        data = Data(#"{"providers":[],"models":[],"modelLoadError":{"providerId":"unavailable","code":"auth_required","detail":null}}"#.utf8)
+                        break
+                    }
+                    guard query.contains(URLQueryItem(name: "providerId", value: "provider-fixture")) else { throw CheckFailure.assertion }
+                    data = Data(#"{"providers":[{"id":"provider-fixture","displayName":"Fixture provider","available":true}],"models":[{"id":"catalog-id","model":"wire-model","displayName":"Readable name","isDefault":true}],"modelLoadError":null}"#.utf8)
+                case "/api/v1/projects/proj_one/default-execution-options":
+                    data = Data(#"{"providerId":"provider-fixture","model":"remembered-model"}"#.utf8)
+                case "/api/v1/threads":
+                    Self.creates += 1
+                    var bytes = request.httpBody ?? Data()
+                    if let stream = request.httpBodyStream {
+                        stream.open(); defer { stream.close() }
+                        var buffer = [UInt8](repeating: 0, count: 4096)
+                        while stream.hasBytesAvailable { let count = stream.read(&buffer, maxLength: buffer.count); if count <= 0 { break }; bytes.append(buffer, count: count) }
+                    }
+                    let fields = try JSONSerialization.jsonObject(with: bytes) as? [String: Any]
+                    guard fields?["origin"] as? String == "sdk", fields?["projectId"] as? String == "proj_one",
+                          (fields?["input"] as? [[String: String]])?.first?["text"] == "First explicit send" else { throw CheckFailure.badSend }
+                    if Self.creates == 1 {
+                        guard fields?["providerId"] as? String == "provider-fixture", fields?["model"] as? String == "wire-model" else { throw CheckFailure.badSend }
+                    } else {
+                        guard fields?["providerId"] == nil, fields?["model"] == nil else { throw CheckFailure.badSend }
+                    }
+                    data = Data(#"{"id":"created-thread","title":null,"projectId":"proj_one"}"#.utf8)
                 case "/api/v1/projects": data = Data(#"[{"id":"proj_one","name":"One"}]"#.utf8)
                 case "/api/v1/sidebar-bootstrap":
                     let entries: [[String: Any]] = (0..<60).map { ["id": "thr_\($0)", "title": NSNull(), "projectId": "proj_one", "hasPendingInteraction": $0 == 59] }
@@ -160,6 +188,15 @@ enum CheckFailure: Error { case badCredential, missingAuth, badSend, unexpectedP
         do { _ = try await cancelledSend.value; throw CheckFailure.assertion }
         catch is CancellationError { }
         guard WireFixture.sends == sendsBeforeCancellation else { throw CheckFailure.assertion }
+        let defaults = try await client.projectExecutionDefaults(projectID: "proj_one")
+        guard defaults?.model == "remembered-model" else { throw CheckFailure.assertion }
+        let options = try await client.executionOptions(providerID: "provider-fixture")
+        let unavailable = try await client.executionOptions(providerID: "unavailable")
+        guard unavailable.models.isEmpty, unavailable.modelLoadError?.code == "auth_required" else { throw CheckFailure.assertion }
+        guard let chosen = options.models.first, chosen.model == "wire-model", chosen.id == "catalog-id" else { throw CheckFailure.assertion }
+        _ = try await client.createThread(projectID: "proj_one", text: "First explicit send", providerID: options.providers.first?.id, model: chosen.model)
+        _ = try await client.createThread(projectID: "proj_one", text: "First explicit send")
+        guard WireFixture.creates == 2 else { throw CheckFailure.assertion }
         let allThreads = try await client.threads()
         guard allThreads.count == 61, allThreads.first?.title == nil,
               allThreads[59].hasPendingInteraction == true,

@@ -1,152 +1,198 @@
 import XCTest
 
-/// Drives the full watch scenario against a live BB for usability recording.
-/// Env: BB_PAIRING_CODE (pair if offline), BB_THREAD_TITLE (thread to select on the Threads page).
+/// Explicit local simulator fixtures never authenticate, record AVAudioEngine input,
+/// or send prompts. Each launch uses a separate temporary durable store.
 final class ScenarioUITests: XCTestCase {
     let app = XCUIApplication()
-    let start = Date()
+    override func setUp() { continueAfterFailure = false }
+    func launch(_ scenario: String) {
+        app.terminate()
+        app.launchEnvironment["BB_UI_FIXTURE"] = scenario
+        app.launch()
+        XCTAssertTrue(app.buttons["Choose thread"].waitForExistence(timeout: 15))
+    }
+    func screenshot(_ name: String) {
+        // Native sheet/symbol transitions can finish after the accessibility tree updates.
+        Thread.sleep(forTimeInterval: 0.35)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    func tap(_ label: String) {
+        let element = app.buttons[label].firstMatch
+        XCTAssertTrue(element.waitForExistence(timeout: 8), label)
+        if !element.isHittable { app.swipeUp() }
+        element.tap()
+    }
+    func row(_ prefix: String) -> XCUIElement {
+        let matches = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix))
+        return matches.allElementsBoundByIndex.first(where: { $0.isHittable }) ?? matches.firstMatch
+    }
+    func assertButton(_ name: String) { XCTAssertTrue(app.buttons[name].waitForExistence(timeout: 8), name) }
 
-    func log(_ step: String) {
-        NSLog("UX|t=%07.2f|%@", Date().timeIntervalSince(start), step)
+    func testCaptureAndRecipient() {
+        launch("recording")
+        assertButton("Pause recording")
+        screenshot("capture")
+        tap("Choose thread")
+        XCTAssertTrue(row("Release notes").waitForExistence(timeout: 8))
+        row("Release notes").tap()
+        assertButton("Pause recording")
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("Release notes") == true)
+        tap("Pause recording")
+        assertButton("Resume recording")
+        screenshot("paused-retargeted")
+        tap("Choose thread")
+        tap("Return to recorder")
+        assertButton("Resume recording") // Navigation must never start capture.
+        tap("Resume recording")
+        assertButton("Pause recording")
+        tap("Send recording")
+        assertButton("Record") // A queued request must not block capture.
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Transcribing'")).firstMatch.waitForExistence(timeout: 8))
+        screenshot("processing")
+        tap("Record")
+        assertButton("Pause recording")
+        tap("Pause recording")
+        tap("Close recording, keep saved audio")
+        assertButton("Record")
+        tap("Recordings")
+        assertButton("Return to recorder")
+        screenshot("history")
+        XCTAssertTrue(row("Check the reply").waitForExistence(timeout: 8))
     }
-    func dump(_ screen: String) {
-        print("UXTREE|\(screen)|BEGIN")
-        for line in app.debugDescription.split(separator: "\n") { print("UXTREE|\(screen)|\(line)") }
-        print("UXTREE|\(screen)|END")
+    func testUnsentSelectionDoesNotChangeObservation() {
+        launch("paused")
+        tap("Choose thread")
+        row("Release notes").tap()
+        tap("Close recording, keep saved audio")
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("Watch sync") == true)
+        tap("Recordings")
+        XCTAssertTrue(row("Check the reply").waitForExistence(timeout: 8))
+        row("Check the reply").tap()
+        XCTAssertTrue(app.staticTexts["Release notes"].exists)
+        screenshot("saved-retargeted")
     }
-    /// watchOS exposes List rows as cells or buttons whose label starts with the row title.
-    func row(_ title: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(format: "(elementType == 75 OR elementType == 9) AND label BEGINSWITH %@", title)).firstMatch
+    func testNewContextAndToolbar() {
+        launch("working")
+        tap("Choose thread"); screenshot("threads")
+        tap("New")
+        XCTAssertTrue(app.buttons["Project selector"].waitForExistence(timeout: 8))
+        screenshot("new")
+        tap("Project selector")
+        tap("Website")
+        tap("Model selector")
+        XCTAssertTrue(row("Project default").waitForExistence(timeout: 8))
+        screenshot("models-default")
+        tap("Return to recorder")
+        assertButton("Record")
+        XCTAssertFalse(app.buttons["Pause recording"].exists)
+        tap("Record")
+        assertButton("Pause recording")
+        XCTAssertTrue(app.frame.contains(app.buttons["Send recording"].frame), "New recording must keep Send fully visible")
+        screenshot("new-capture")
     }
-    @discardableResult
-    func waitFor(_ element: XCUIElement, _ label: String, timeout: TimeInterval = 20) -> Bool {
-        let t = Date()
-        let ok = element.waitForExistence(timeout: timeout)
-        log("wait \(label) -> \(ok ? "ok" : "MISSING") in \(String(format: "%.2f", Date().timeIntervalSince(t)))s")
-        return ok
+    func testQuestionUndo() {
+        launch("question")
+        XCTAssertTrue(app.staticTexts["Which version should I keep?"].waitForExistence(timeout: 8))
+        screenshot("question")
+        tap("Keep the simple version")
+        assertButton("Undo")
+        screenshot("undo")
+        tap("Undo")
+        assertButton("Keep the simple version")
     }
-    func tap(_ element: XCUIElement, _ label: String) {
-        var tries = 0
-        _ = element.waitForExistence(timeout: 8)
-        while !(element.exists && element.isHittable) && tries < 12 { crown(0.25); settle(0.3); tries += 1; log("crown for \(label)") }
-        waitFor(element, label, timeout: 5)
-        element.tap(); log("tap \(label)")
+    func testPendingAnswerDoesNotReplaceNewDelivery() {
+        launch("question")
+        tap("Keep the simple version")
+        assertButton("Undo")
+        tap("Choose thread"); tap("New")
+        tap("Record"); tap("Send recording")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Transcribing'")).firstMatch.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["Undo"].exists)
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("Transcribing") == true)
+        screenshot("new-delivery-with-previous-answer")
+        tap("Choose thread"); row("Watch sync").tap()
+        assertButton("Undo") // Selecting New did not delete or answer the prior question.
     }
-    func back() {
-        let button = app.navigationBars.buttons.firstMatch
-        if button.waitForExistence(timeout: 3) { button.tap() } else { app.swipeRight() }
-        log("back")
-    }
-    /// Small scroll standing in for the Digital Crown (XCUITest has no crown API on watchOS).
-    func crown(_ delta: Double) {
-        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: delta > 0 ? 0.75 : 0.35))
-        let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: delta > 0 ? 0.75 - 0.4 * delta : 0.35 - 0.4 * delta))
-        from.press(forDuration: 0.05, thenDragTo: to)
-    }
-    func settle(_ seconds: TimeInterval) { Thread.sleep(forTimeInterval: seconds) }
-
-    /// The big mood word on the stage (or the empty-stage hint when no thread is selected).
-    func mood(_ words: [String]) -> XCUIElement {
-        let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: words.map { NSPredicate(format: "label ==[c] %@", $0) })
-        return app.staticTexts.matching(predicate).firstMatch
-    }
-    func anyMood() -> XCUIElement { mood(["READY", "WORKING", "NEEDS YOU", "DONE", "FAILED", "SENDING", "OFFLINE", "LOADING", "SYNC FAILED", "WAITING"]) }
-    func closeSheet() {
-        let close = app.buttons["Close"].firstMatch
-        if close.waitForExistence(timeout: 3) { close.tap() } else { app.swipeDown() }
-        log("close sheet")
-    }
-
-    /// Three pages: Record ← Stage → Threads. Drives the live BB without the microphone.
-    func testFullScenario() throws {
-        let env = ProcessInfo.processInfo.environment
-        let code = env["BB_PAIRING_CODE"] ?? ""
-        let wantedTitle = env["BB_THREAD_TITLE"] ?? ""
-        log("code present: \(!code.isEmpty)")
-        app.launch(); log("launched")
-
-        // 1. Stage, pairing if needed.
-        waitFor(anyMood(), "stage word", timeout: 30)
-        settle(2); dump("stage-launch")
-        if !code.isEmpty && mood(["OFFLINE"]).exists {
-            app.swipeLeft(); settle(1.5)
-            tap(row("Connect BB"), "Connect BB row")
-            let field = app.textFields["Pairing code"]
-            tap(field, "pairing field"); settle(1.5)
-            app.typeText(code); log("typed code")
-            settle(0.5); dump("pairing-keyboard")
-            for done in ["Done", "Готово"] where app.buttons[done].exists { app.buttons[done].tap(); log("tap \(done)"); break }
-            settle(1)
-            tap(app.buttons["Connect"].firstMatch, "Connect")
-            waitFor(app.staticTexts["Connected"], "Connected", timeout: 40)
-            settle(1); dump("settings-connected"); closeSheet(); settle(1)
-            app.swipeRight(); settle(1.5)
+    func testContinuousNewRequestLifecycle() {
+        launch("lifecycle")
+        tap("Record")
+        assertButton("Pause recording")
+        tap("Send recording")
+        let states = ["Transcribing", "Sending transcript", "Accepted by BB", "Checking the requested changes.", "The requested changes are ready for review."]
+        for (index, state) in states.enumerated() {
+            let content = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", state)).firstMatch
+            XCTAssertTrue(content.waitForExistence(timeout: 8), state)
+            assertButton("Record")
+            XCTAssertFalse(app.buttons["Project selector"].exists)
+            screenshot("lifecycle-\(index)")
+            if index < states.count - 1 {
+                app.swipeUp()
+                tap("Advance fixture")
+                app.swipeDown(); app.swipeDown()
+            }
         }
-
-        // 2. Threads page: pick the test thread.
-        app.swipeLeft(); settle(1.5); log("threads page")
-        let rows = app.cells
-        waitFor(rows.element(boundBy: 1), "thread rows", timeout: 30)
-        settle(1.5); dump("threads")
-        crown(1.0); settle(0.8); crown(-1.0); settle(0.8); log("scrolled threads")
-        // Never pick an arbitrary chat: this scenario sends one live message.
-        guard !wantedTitle.isEmpty else { XCTFail("BB_THREAD_TITLE is required for the send scenario"); return }
-        let target = row(wantedTitle)
-        tap(target, "chat \(wantedTitle)")
-        waitFor(anyMood(), "stage after pick", timeout: 15)
-        if !wantedTitle.isEmpty {
-            waitFor(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", wantedTitle)).firstMatch, "stage shows thread", timeout: 10)
-        }
-        settle(2); dump("stage-picked")
-
-        // 3. Send the seeded transcript-only draft to the current thread.
-        app.swipeLeft(); settle(1.5)
-        // The Recordings row sits right under "New thread" whenever something is unsent.
-        crown(-1.5); settle(0.8); dump("threads-top")
-        tap(row("Recordings"), "Recordings")
-        settle(1.5); dump("recordings-list")
-        tap(row("00:14"), "newest recording")  // sheet rows start with the duration; list is newest first
-        waitFor(row("Send"), "draft view"); settle(1.5); dump("draft")
-        tap(row("Send"), "Send")
-        let sendT = Date()
-        // Send closes the sheet and lands on the stage by itself; just watch.
-        settle(0.5); dump("draft-sent")
-        waitFor(anyMood(), "stage after send", timeout: 10)
-        let sawSending = waitFor(mood(["SENDING"]), "SENDING", timeout: 15)
-        if sawSending { dump("stage-sending") }
-        let sawWorking = waitFor(mood(["WORKING"]), "WORKING", timeout: 60)
-        if sawWorking { settle(1); dump("stage-working") }
-        let done = waitFor(mood(["DONE"]), "DONE", timeout: 120)
-        log("send-to-done \(String(format: "%.1f", Date().timeIntervalSince(sendT)))s done=\(done)")
-        settle(2); dump("stage-done")
-        XCTAssertTrue(done, "agent reply never reached DONE")
-
-        // 4. Full thread sheet.
-        app.tap(); log("tap stage")
-        waitFor(app.buttons["Listen"].firstMatch, "thread sheet", timeout: 10)
-        settle(1.5); dump("thread-sheet")
-        let listen = app.buttons["Listen"].firstMatch
-        if listen.exists { listen.tap(); log("tap Listen"); settle(3); dump("thread-sheet-playing") }
-        closeSheet(); settle(1.5)
-
-        // 5. Record page, no recording.
-        app.swipeRight(); settle(2.5); log("record page"); dump("record")
-        app.swipeLeft(); settle(1.5); log("back on stage")
-        waitFor(anyMood(), "stage again", timeout: 10)
-        log("done")
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("New request") == true)
     }
-
-    /// Walks the three-page UI for screenshots; no recording, no sends.
-    func testTour() throws {
-        app.launch(); log("launched"); settle(5); dump("stage")
-        app.swipeRight(); settle(3); log("record page"); dump("record")
-        app.swipeLeft(); settle(1); app.swipeLeft(); settle(3); log("threads page"); dump("threads")
-        app.swipeUp(); settle(2); app.swipeDown(); settle(1)
-        let rows = app.cells
-        if rows.count > 2 { rows.element(boundBy: 2).tap(); log("tap thread 2"); settle(5); dump("stage-2") }
-        app.tap(); settle(3); log("full thread sheet"); dump("thread-sheet")
-        app.swipeDown(); settle(2)
-        if app.buttons["Close"].firstMatch.exists { app.buttons["Close"].firstMatch.tap() }
-        settle(2); log("done")
+    func testSwipeChooserAndDismiss() {
+        launch("working")
+        app.swipeLeft()
+        XCTAssertTrue(app.buttons["New"].waitForExistence(timeout: 8))
+        // System dismiss gesture preserves current context.
+        app.swipeDown()
+        if app.buttons["Return to recorder"].exists { tap("Return to recorder") }
+        assertButton("Choose thread")
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("Watch sync") == true)
+    }
+    func advanceFixture() {
+        app.swipeUp(); app.swipeUp()
+        tap("Advance fixture")
+        app.swipeDown(); app.swipeDown(); app.swipeDown()
+    }
+    func testFollowupCaptureResolvesToCreatedThread() {
+        launch("lifecycle")
+        tap("Record"); tap("Send recording")
+        tap("Record"); tap("Pause recording")
+        XCTAssertFalse(app.buttons["Project selector"].exists)
+        advanceFixture(); advanceFixture()
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("New request") == true)
+        assertButton("Resume recording")
+        screenshot("followup-resolved")
+        tap("Send recording")
+        assertButton("Record")
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("New request") == true)
+    }
+    func testLateCreateReceiptDoesNotStealSelection() {
+        launch("lifecycle")
+        tap("Record"); tap("Send recording")
+        tap("Choose thread"); row("Release notes").tap()
+        advanceFixture(); advanceFixture()
+        XCTAssertTrue((app.buttons["Choose thread"].value as? String)?.contains("Release notes") == true)
+        screenshot("late-create-selection-preserved")
+    }
+    func testLargeTextAndReduceMotion() {
+        app.launchEnvironment["BB_UI_ACCESSIBILITY"] = "1"
+        defer { app.launchEnvironment["BB_UI_ACCESSIBILITY"] = nil }
+        launch("question")
+        XCTAssertTrue(app.staticTexts["Which version should I keep?"].waitForExistence(timeout: 8))
+        screenshot("large-question-reduce-motion")
+        tap("Show the detailed version")
+        tap("Undo")
+        assertButton("Keep the simple version")
+        screenshot("large-question-after-undo")
+    }
+    func testTour() {
+        for scenario in ["working", "result", "loading", "stale", "offline", "waiting", "agent-error", "queued", "transcribing", "sending", "unknown", "failed", "unsupported"] {
+            launch(scenario)
+            XCTAssertTrue(app.buttons["Record"].exists || app.buttons["Record voice"].exists)
+            screenshot(scenario)
+            if scenario == "unknown" {
+                XCTAssertFalse(app.buttons["Send recording"].exists)
+                tap("Recordings")
+                row("Check thread switching").tap()
+                XCTAssertFalse(app.buttons["Send recording"].exists)
+                screenshot("unknown-detail")
+            }
+        }
     }
 }
