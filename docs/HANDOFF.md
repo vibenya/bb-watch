@@ -1,3 +1,30 @@
+# Sync reliability repairs — 2026-10-17
+
+GitHub issues #1–#10 track the sync investigation and follow-up. Native repairs
+separate selected-thread polling from sidebar and queued transcription, restart
+reads on selection/foreground changes, and invalidate stale results with a
+selection/connection generation. Loading and failed refreshes no longer present
+READY; runtime status comes from current thread detail instead of historical
+turn rows. Thread detail and timeline are still separate, non-atomic reads.
+
+Replies, activity and question labels scroll without line caps. Full history has
+explicit cursor-based Load older and stale-cursor recovery. Safe GET transport
+failures retry once; mutations and TLS failures do not. Typed private diagnostics
+correlate local request, display and delivery milestones; see DIAGNOSTICS.md.
+
+Lead verification: full `./native/check.sh` passed, including nine durable-store
+tests, expanded URLSession contracts, Chats projection, real audio checkpoint
+roundtrip, diagnostics privacy/retention, strict Swift 6 and both SDK builds.
+Dynamic thread-switch race and physical latency acceptance remain unverified.
+No live test prompts, device installation or binary distribution accompany this
+source repair. Current foreground polling still sleeps 3 seconds busy / 20 idle;
+network duration is additional, and background polling is suspended.
+
+Voice performance has only a synthetic host assembly baseline; no ASR/upload
+speedup is claimed. The event/plugin design in `specs/watch-event-contract.md`
+is a proposal, not installed functionality. Network/TLS root cause on hardware,
+measured voice latency and plugin implementation remain open (#6, #7, #10).
+
 # Development handoff — 2026-10-16
 
 ## 2026-10-16 — stage redesign

@@ -2,16 +2,16 @@ import SwiftUI
 
 /// One mood drives the whole screen: background colour, the big word, the glass tint.
 enum Mood: Equatable {
-    case offline, idle, working, needsYou, done, error, recording, sending
+    case offline, idle, loading, syncFailed, waiting, working, needsYou, done, error, recording, sending
 
     var tint: Color {
         switch self {
-        case .offline: Color(white: 0.55)
+        case .offline, .loading, .waiting: Color(white: 0.55)
         case .idle: Color(white: 0.92)
         case .working: Color(red: 0.80, green: 1.00, blue: 0.20)   // volt
         case .needsYou: Color(red: 1.00, green: 0.47, blue: 0.12)  // infrared
         case .done: Color(red: 0.45, green: 0.90, blue: 1.00)      // glacier
-        case .error: Color(red: 1.00, green: 0.30, blue: 0.32)
+        case .error, .syncFailed: Color(red: 1.00, green: 0.30, blue: 0.32)
         case .recording: Color(red: 1.00, green: 0.23, blue: 0.19)
         case .sending: Color(red: 0.70, green: 0.60, blue: 1.00)
         }
@@ -20,6 +20,9 @@ enum Mood: Equatable {
         switch self {
         case .offline: "OFFLINE"
         case .idle: "READY"
+        case .loading: "LOADING"
+        case .syncFailed: "SYNC FAILED"
+        case .waiting: "WAITING"
         case .working: "WORKING"
         case .needsYou: "NEEDS YOU"
         case .done: "DONE"
@@ -29,7 +32,7 @@ enum Mood: Equatable {
         }
     }
     var glow: Double {
-        switch self { case .idle, .offline: 0.28; default: 0.6 }
+        switch self { case .idle, .offline, .loading, .waiting: 0.28; default: 0.6 }
     }
 }
 
@@ -79,10 +82,11 @@ struct GlassButton: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if let symbol { Image(systemName: symbol).font(.system(size: 14, weight: .bold)) }
-                Text(title).font(.system(size: 15, weight: .bold).width(.condensed)).lineLimit(2).minimumScaleFactor(0.8)
+                Text(title).font(.system(size: 15, weight: .bold).width(.condensed))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(prominent ? .black : tint)
-            .padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: 40)
+            .padding(.horizontal, 14).padding(.vertical, 8).frame(maxWidth: .infinity, minHeight: 40)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)

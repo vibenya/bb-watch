@@ -7,14 +7,24 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var authCalls = 0
     nonisolated(unsafe) static var rejectProjects = 0
     nonisolated(unsafe) static var sends = 0
+    nonisolated(unsafe) static var projectCalls = 0
+    nonisolated(unsafe) static var projectFailures: [URLError.Code] = []
     nonisolated(unsafe) static var authenticated = false
-    // Timeline rows shaped like BB's: id, kind, role?, text?, status?, title?, command?.
+    nonisolated(unsafe) static var rejectHistory = false
+    // Minimal projections of installed BB's thread + timeline contracts.
+    // Runtime status is independent of historical timeline rows.
+    static let statuses = ["thr_one": "idle", "thr_completed": "idle", "thr_running": "active",
+                           "thr_error": "error", "thr_system": "idle", "thr_mixed": "idle",
+                           "thr_next_turn": "active", "thr_interrupted": "idle", "thr_starting": "starting"]
     static let timelines: [String: String] = [
-        "thr_completed": #"{"rows":[{"id":"u1","kind":"conversation","role":"user","text":"Go"},{"id":"t1","kind":"turn","status":"completed"},{"id":"w1","kind":"work","title":"Old tool"}]}"#,
-        "thr_running": #"{"rows":[{"id":"t1","kind":"turn","status":"completed"},{"id":"t2","kind":"turn","status":"running"},{"id":"w1","kind":"work","title":"Read file"},{"id":"w2","kind":"work","title":"Run tests"}]}"#,
-        "thr_error": #"{"rows":[{"id":"t1","kind":"turn","status":"running"},{"id":"w1","kind":"work","title":"Run tests"},{"id":"t2","kind":"turn","status":"error"}]}"#,
+        "thr_completed": #"{"rows":[{"id":"u1","kind":"conversation","role":"user","text":"Go"},{"id":"w1","kind":"work","turnId":"old","status":"pending","command":"Old tool"}]}"#,
+        "thr_running": #"{"rows":[{"id":"t1","kind":"turn","turnId":"old","status":"completed"},{"id":"w1","kind":"work","turnId":"current","status":"completed","command":"Read file"},{"id":"w2","kind":"work","turnId":"current","status":"pending","workKind":"tool","toolName":"exec_command","presentation":{"title":"Run tests"}}]}"#,
+        "thr_error": #"{"rows":[{"id":"w1","kind":"work","turnId":"old","status":"pending","command":"Run tests"}]}"#,
         "thr_system": #"{"rows":[{"id":"s1","kind":"system","title":"Context compacted"}]}"#,
-        "thr_mixed": #"{"rows":[{"id":"c1","kind":"conversation","role":"user","text":"First"},{"id":"w1","kind":"work","title":"Tool","command":"ls"},{"id":"c2","kind":"conversation","role":"assistant","text":"Second"},{"id":"x1","kind":"system","text":"Noise"},{"id":"c3","kind":"conversation","role":"assistant"},{"id":"c4","kind":"conversation","role":"user","text":"Third"}]}"#,
+        "thr_mixed": #"{"rows":[{"id":"c1","kind":"conversation","role":"user","text":"First"},{"id":"w1","kind":"work","command":"ls"},{"id":"c2","kind":"conversation","role":"assistant","text":"Second"},{"id":"x1","kind":"system","text":"Noise"},{"id":"c3","kind":"conversation","role":"assistant"},{"id":"c4","kind":"conversation","role":"user","text":"Third"}]}"#,
+        "thr_next_turn": #"{"rows":[{"id":"w1","kind":"work","turnId":"old","status":"pending","command":"Old tool"},{"id":"u2","kind":"conversation","turnId":"new","role":"user","text":"Next"}]}"#,
+        "thr_starting": #"{"rows":[{"id":"w1","kind":"work","turnId":"old","status":"pending","command":"Old tool"},{"id":"t1","kind":"turn","turnId":"old","status":"completed"}]}"#,
+        "thr_interrupted": #"{"rows":[{"id":"t1","kind":"turn","turnId":"old","status":"interrupted"}]}"#,
     ]
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host == "fixture.getbb.app" }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -32,6 +42,13 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
                 data = try JSONSerialization.data(withJSONObject: ["cookie": ["domain": "fixture.getbb.app", "expiresAt": Date().addingTimeInterval(600).timeIntervalSince1970 * 1000, "name": "fixture-session", "value": "fixture-cookie"]])
             } else {
                 guard Self.authenticated, request.value(forHTTPHeaderField: "Cookie")?.contains("fixture-session=fixture-cookie") == true else { throw CheckFailure.missingAuth }
+                if path == "/api/v1/projects" {
+                    Self.projectCalls += 1
+                    if !Self.projectFailures.isEmpty {
+                        client?.urlProtocol(self, didFailWithError: URLError(Self.projectFailures.removeFirst()))
+                        return
+                    }
+                }
                 if path == "/api/v1/projects", Self.rejectProjects > 0 {
                     Self.rejectProjects -= 1
                     let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
@@ -44,6 +61,28 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
                 case "/api/v1/sidebar-bootstrap":
                     let entries: [[String: Any]] = (0..<60).map { ["id": "thr_\($0)", "title": NSNull(), "projectId": "proj_one", "hasPendingInteraction": $0 == 59] }
                     data = try JSONSerialization.data(withJSONObject: ["projects": [["threads": entries]], "personalProject": ["threads": [entries[0], ["id": "thr_personal", "title": "Personal", "projectId": "personal", "hasPendingInteraction": false]]]])
+                case "/api/v1/threads/thr_history/timeline":
+                    let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems ?? []
+                    guard query.contains(URLQueryItem(name: "segmentLimit", value: "30")) else { throw CheckFailure.assertion }
+                    let anchor = query.first { $0.name == "beforeAnchorId" }?.value
+                    if Self.rejectHistory {
+                        Self.rejectHistory = false
+                        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+                        client?.urlProtocolDidFinishLoading(self)
+                        return
+                    }
+                    if anchor == "stale" {
+                        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+                        client?.urlProtocolDidFinishLoading(self)
+                        return
+                    }
+                    if let anchor {
+                        guard anchor == "timeline-v3:opaque+/=&?", query.contains(URLQueryItem(name: "beforeAnchorSeq", value: "42")) else { throw CheckFailure.assertion }
+                        data = Data(#"{"rows":[{"id":"old","kind":"conversation","role":"user","text":"Older"},{"id":"tool","kind":"work","text":"Hidden"},{"id":"overlap","kind":"conversation","role":"assistant","text":"Complete older answer"}],"timelinePage":{"hasOlderRows":false,"olderCursor":null}}"#.utf8)
+                    } else {
+                        guard !query.contains(where: { $0.name == "beforeAnchorSeq" }) else { throw CheckFailure.assertion }
+                        data = Data(#"{"rows":[{"id":"overlap","kind":"conversation","role":"assistant","text":"Complete older answer"},{"id":"latest","kind":"conversation","role":"user","text":"Newest"}],"timelinePage":{"hasOlderRows":true,"olderCursor":{"anchorSeq":42,"anchorId":"timeline-v3:opaque+/=&?"}}}"#.utf8)
+                    }
                 case "/api/v1/threads/thr_one/timeline": data = Data(#"{"rows":[{"id":"r1","kind":"conversation","role":"assistant","text":"Real response"},{"id":"r2","kind":"system","text":"Never assistant"}]}"#.utf8)
                 case "/api/v1/threads/thr_one/interactions":
                     data = Data(#"[{"id":"interaction-one","payload":{"kind":"user_question","questions":[{"id":"q1","prompt":"Continue?","multiSelect":false,"allowFreeText":true,"options":[{"value":"yes","label":"Да"}]}]}},{"id":"interaction-multi","payload":{"kind":"user_question","questions":[{"id":"q1","prompt":"A?","multiSelect":false,"allowFreeText":true},{"id":"q2","prompt":"B?","multiSelect":false,"allowFreeText":true}]}}]"#.utf8)
@@ -63,6 +102,10 @@ final class WireFixture: URLProtocol, @unchecked Sendable {
                     data = Data(#"{"ok":true,"delivery":"queued","queuedMessage":{"id":"queue-one"}}"#.utf8)
                 default:
                     let parts = path.split(separator: "/").map(String.init)
+                    if parts.count == 4, parts[2] == "threads", let status = Self.statuses[parts[3]] {
+                        data = try JSONSerialization.data(withJSONObject: ["id": parts[3], "status": status, "runtime": ["displayStatus": status]])
+                        break
+                    }
                     guard parts.count == 5, parts[2] == "threads", parts[4] == "timeline", let json = Self.timelines[parts[3]] else { throw CheckFailure.unexpectedPath }
                     data = Data(json.utf8)
                 }
@@ -96,6 +139,27 @@ enum CheckFailure: Error { case badCredential, missingAuth, badSend, unexpectedP
         do { _ = try await client.projects(); throw CheckFailure.assertion }
         catch BBClientError.http(401) { }
         guard WireFixture.authCalls == 3 else { throw CheckFailure.assertion }
+        // Recover one transient read failure without replaying writes or TLS failures.
+        for code: URLError.Code in [.networkConnectionLost, .timedOut] {
+            let before = WireFixture.projectCalls
+            WireFixture.projectFailures = [code]
+            guard try await client.projects().count == 1, WireFixture.projectCalls == before + 2 else { throw CheckFailure.assertion }
+        }
+        for (failures, attempts) in [([URLError.Code.networkConnectionLost, .networkConnectionLost], 2), ([.secureConnectionFailed], 1), ([.cancelled], 1)] {
+            let before = WireFixture.projectCalls
+            WireFixture.projectFailures = failures
+            do { _ = try await client.projects(); throw CheckFailure.assertion }
+            catch let error as URLError { guard error.code == failures.last else { throw CheckFailure.assertion } }
+            guard WireFixture.projectCalls == before + attempts else { throw CheckFailure.assertion }
+        }
+        let sendsBeforeCancellation = WireFixture.sends
+        let cancelledSend = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await client.send(text: "Persisted brief", threadID: "thr_one")
+        }
+        do { _ = try await cancelledSend.value; throw CheckFailure.assertion }
+        catch is CancellationError { }
+        guard WireFixture.sends == sendsBeforeCancellation else { throw CheckFailure.assertion }
         let allThreads = try await client.threads()
         guard allThreads.count == 61, allThreads.first?.title == nil,
               allThreads[59].hasPendingInteraction == true,
@@ -106,6 +170,12 @@ enum CheckFailure: Error { case badCredential, missingAuth, badSend, unexpectedP
         guard !completed.working, !completed.failed, completed.activity == nil else { throw CheckFailure.assertion }
         let running = try await client.timeline(threadID: "thr_running")
         guard running.working, !running.failed, running.activity == "Run tests" else { throw CheckFailure.assertion }
+        let nextTurn = try await client.timeline(threadID: "thr_next_turn")
+        guard nextTurn.working, nextTurn.activity == nil else { throw CheckFailure.assertion }
+        let starting = try await client.timeline(threadID: "thr_starting")
+        guard starting.working, starting.activity == nil else { throw CheckFailure.assertion }
+        let interrupted = try await client.timeline(threadID: "thr_interrupted")
+        guard !interrupted.working, !interrupted.failed else { throw CheckFailure.assertion }
         let errored = try await client.timeline(threadID: "thr_error")
         guard errored.failed, !errored.working, errored.activity == nil else { throw CheckFailure.assertion }
         let systemOnly = try await client.timeline(threadID: "thr_system")
@@ -113,6 +183,13 @@ enum CheckFailure: Error { case badCredential, missingAuth, badSend, unexpectedP
         let mixed = try await client.timeline(threadID: "thr_mixed")
         guard mixed.messages.map(\.id) == ["c1", "c2", "c4"], mixed.messages.map(\.text) == ["First", "Second", "Third"],
               mixed.messages.map(\.role) == ["user", "assistant", "user"], !mixed.working else { throw CheckFailure.assertion }
+        let latestPage = try await client.history(threadID: "thr_history")
+        guard latestPage.messages.map(\.id) == ["overlap", "latest"], let cursor = latestPage.olderCursor else { throw CheckFailure.assertion }
+        WireFixture.rejectHistory = true
+        let olderPage = try await client.history(threadID: "thr_history", before: cursor)
+        guard olderPage.messages.map(\.id) == ["old", "overlap"], olderPage.olderCursor == nil else { throw CheckFailure.assertion }
+        do { _ = try await client.history(threadID: "thr_history", before: BBHistoryCursor(anchorSeq: 1, anchorId: "stale")); throw CheckFailure.assertion }
+        catch BBClientError.http(400) { }
         let questions = try await client.questions(threads: [BBThread(id: "thr_one", title: nil, projectId: "proj_one")])
         guard questions.count == 2, questions[0].supported, !questions[1].supported else { throw CheckFailure.assertion }
         guard try await client.resolve(question: questions[0], optionID: "yes") == "interaction-one" else { throw CheckFailure.assertion }

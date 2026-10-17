@@ -12,12 +12,26 @@ struct BBWatchApp: App {
                 .alert("BB", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
                     Button("OK", role: .cancel) { model.error = nil }
                 } message: { Text(model.error ?? "") }
-                .onChange(of: phase) { _, next in
+                .onChange(of: phase, initial: true) { _, next in
                     model.foreground = next == .active
-                    if next == .active { Task { await model.refresh(); model.adoptDefaultThread() } }
+                    let event: DiagnosticEvent = next == .active ? .sceneActive : next == .background ? .sceneBackground : .sceneInactive
+                    Task { await WatchDiagnostics.shared.record(event, foreground: next == .active) }
                 }
         }
     }
+}
+
+private struct StagePollKey: Equatable {
+    let revision: UUID
+    let identity: String
+    let threadID: String?
+    let foreground: Bool
+    let sending: Bool
+}
+
+private struct SidebarPollKey: Equatable {
+    let identity: String
+    let foreground: Bool
 }
 
 /// Three pages, horizontal like Workout: Record ← Stage → Threads. The stage is home.
@@ -32,9 +46,12 @@ struct RootView: View {
         }
         .tabViewStyle(.page)
         .background(Color.black.ignoresSafeArea())
-        .task {
-            await model.refresh(); model.adoptDefaultThread()
+        .task(id: StagePollKey(revision: model.stageRevision, identity: model.identity, threadID: model.currentThreadID,
+                               foreground: model.foreground, sending: !model.sending.isEmpty)) {
             await model.watchStage()
+        }
+        .task(id: SidebarPollKey(identity: model.identity, foreground: model.foreground)) {
+            await model.watchSidebar()
         }
         .onOpenURL { url in
             // Complication tap: jump to the recorder and start on the current thread.

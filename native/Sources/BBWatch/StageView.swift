@@ -17,24 +17,26 @@ struct StageView: View {
     }
     private var lastReply: BBMessage? { model.stage?.messages.last { $0.role == "assistant" } }
     private var lastMine: BBMessage? { model.stage?.messages.last { $0.role == "user" } }
-    /// Was my message sent after the agent's last reply? Then the agent owes an answer.
-    private var awaitingReply: Bool {
-        guard let messages = model.stage?.messages, let last = messages.last else { return false }
-        return last.role == "user"
-    }
 
     var mood: Mood {
         if !model.connected { return .offline }
         if let delivery { return delivery.state == .failed ? .error : .sending }
-        if question != nil || pendingAnswer != nil { return .needsYou }
-        if model.stage?.working == true || thread?.status == "active" || awaitingReply { return .working }
-        if model.stage?.failed == true || thread?.status == "error" { return .error }
+        if pendingAnswer != nil { return .needsYou }
+        if model.stageSyncFailed { return .syncFailed }
+        if model.currentThreadID != nil && model.stage?.status == nil { return .loading }
+        if question != nil { return .needsYou }
+        if model.stage?.failed == true { return .error }
+        if model.stage?.working == true { return .working }
+        if model.stage?.status == "waiting-for-host" { return .waiting }
         if lastReply != nil { return .done }
         return .idle
     }
     private var activityLine: String? {
         if let delivery { return delivery.state == .failed ? (delivery.error ?? "Send failed") : statusLabel(delivery.state) }
-        if mood == .working { return model.stage?.activity ?? "Thinking" }
+        if mood == .syncFailed { return "Could not update. Showing saved messages." }
+        if mood == .loading { return lastReply == nil ? "Loading conversation" : "Updating saved messages" }
+        if mood == .waiting { return "Waiting for BB host" }
+        if mood == .working { return model.stage?.activity ?? "Agent is working" }
         if mood == .offline { return "Swipe right, open Settings to connect" }
         return nil
     }
@@ -46,7 +48,7 @@ struct StageView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Kicker(text: model.projects.first { $0.id == thread?.projectId }?.name ?? "BB")
                     Spacer(minLength: 4)
-                    if model.stage?.working == true || mood == .sending { PulseDot(color: mood.tint) }
+                    if mood == .working || mood == .sending || mood == .loading { PulseDot(color: mood.tint) }
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(mood.word)
@@ -55,16 +57,25 @@ struct StageView: View {
                         .contentTransition(.interpolate)
                         .id(mood.word)
                         .transition(.blurReplace)
-                    if let activityLine {
-                        Text(activityLine).font(.footnote.weight(.medium)).foregroundStyle(.secondary).lineLimit(2)
-                            .transition(.blurReplace).id(activityLine)
-                    }
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel([mood.word.capitalized, activityLine].compactMap { $0 }.joined(separator: ". "))
-                Spacer(minLength: 6)
-                content
-                Spacer(minLength: 0)
+                .accessibilityLabel(mood.word.capitalized)
+                if let pendingAnswer {
+                    AnswerUndo(answer: pendingAnswer)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 6) {
+                            if let activityLine {
+                                Text(activityLine).font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .transition(.blurReplace).id(activityLine)
+                            }
+                            content
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .id(model.currentThreadID)
+                }
                 if let thread {
                     Text(thread.displayTitle).font(.system(size: 12, weight: .semibold).width(.condensed)).foregroundStyle(.tertiary).lineLimit(1)
                 }
@@ -99,17 +110,16 @@ struct StageView: View {
         if thread == nil {
             Text(model.connected ? "Swipe right, choose a chat.\nSwipe left to record." : "Hold to connect BB.")
                 .font(.system(size: 15, weight: .semibold).width(.condensed)).foregroundStyle(.secondary)
-        } else if let pendingAnswer {
-            AnswerUndo(answer: pendingAnswer)
         } else if let question {
             QuestionBlock(question: question)
         } else if let text = lastReply?.text, mood != .sending {
             Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
-                .font(.body.weight(.medium)).lineLimit(6).fixedSize(horizontal: false, vertical: true)
+                .font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                 .transition(.blurReplace).id(lastReply?.id)
         } else if let mine = lastMine?.text {
             Text("“\(mine.trimmingCharacters(in: .whitespacesAndNewlines))”")
-                .font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary).lineLimit(4).italic()
+                .font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary).italic()
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -132,16 +142,15 @@ private struct QuestionBlock: View {
     @EnvironmentObject var model: AppModel
     let question: BBQuestion
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(question.prompt).font(.system(size: 14, weight: .medium)).lineLimit(5)
-                if question.supported {
-                    ForEach(question.options) { option in
-                        GlassButton(title: option.label, tint: Mood.needsYou.tint) { _ = model.choose(question, option: option); haptic(.click) }
-                    }
-                } else {
-                    Text("Answer this one in BB, or record a voice note.").font(.footnote).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(question.prompt).font(.system(size: 14, weight: .medium))
+                .fixedSize(horizontal: false, vertical: true)
+            if question.supported {
+                ForEach(question.options) { option in
+                    GlassButton(title: option.label, tint: Mood.needsYou.tint) { _ = model.choose(question, option: option); haptic(.click) }
                 }
+            } else {
+                Text("Answer this one in BB, or record a voice note.").font(.footnote).foregroundStyle(.secondary)
             }
         }
     }
@@ -153,7 +162,11 @@ private struct AnswerUndo: View {
     let answer: PendingAnswer
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(answer.choiceLabel ?? answer.choice).font(.system(size: 16, weight: .bold)).lineLimit(3)
+            ScrollView {
+                Text(answer.choiceLabel ?? answer.choice).font(.system(size: 16, weight: .bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             if answer.status == .waiting {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let remaining = max(0, Int(ceil(answer.deadline.timeIntervalSince(context.date))))
@@ -169,13 +182,26 @@ private struct AnswerUndo: View {
 /// Full thread as a sheet: newest first, agent lines readable and listenable.
 struct ThreadSheet: View {
     @EnvironmentObject var model: AppModel
-    @Environment(\.dismiss) private var dismiss
+    @State private var history: [BBMessage] = []
+    @State private var cursor: BBHistoryCursor?
+    @State private var scope: UUID?
+    @State private var loading = false
+    @State private var historyError: String?
+    @State private var reloadRequired = false
+
+    private var messages: [BBMessage] {
+        let saved = scope == model.stageRevision ? history : []
+        let recent = model.stage?.messages ?? []
+        let updates = Dictionary(recent.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        var seen = Set<String>()
+        return (saved.map { updates[$0.id] ?? $0 } + recent).filter { seen.insert($0.id).inserted }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if let title = model.currentThread?.displayTitle { Kicker(text: title) }
-                let messages = (model.stage?.messages ?? []).reversed()
-                ForEach(Array(messages)) { message in
+                ForEach(Array(messages.reversed())) { message in
                     VStack(alignment: .leading, spacing: 4) {
                         if message.role == "assistant" {
                             Text(message.text).font(.system(size: 15, weight: .medium))
@@ -185,10 +211,57 @@ struct ThreadSheet: View {
                         }
                     }
                 }
-                if messages.isEmpty { Text("Nothing here yet").foregroundStyle(.secondary) }
+                if scope == model.stageRevision {
+                    if loading { ProgressView("Loading history") }
+                    if let historyError { Text(historyError).foregroundStyle(.secondary) }
+                    if !loading && (cursor != nil || historyError != nil) {
+                        Button(reloadRequired ? "Reload history" : history.isEmpty ? "Retry history" : "Load older") {
+                            Task { await loadHistory(before: reloadRequired ? nil : cursor) }
+                        }
+                    }
+                }
+                if model.stageSyncFailed {
+                    Text("Could not update. Showing saved messages.").foregroundStyle(.secondary)
+                } else if model.stage?.status == nil {
+                    Text("Loading conversation").foregroundStyle(.secondary)
+                } else if messages.isEmpty && !loading {
+                    Text("Nothing here yet").foregroundStyle(.secondary)
+                }
             }.padding(.horizontal, 4)
         }
         .containerBackground(.black.gradient, for: .navigation)
+        .task(id: model.stageRevision) {
+            scope = model.stageRevision
+            history = []; cursor = nil; historyError = nil; reloadRequired = false; loading = false
+            await loadHistory(before: nil)
+        }
+    }
+
+    @MainActor private func loadHistory(before: BBHistoryCursor?) async {
+        let expected = model.stageRevision
+        guard scope == expected, !loading, let threadID = model.currentThreadID else { return }
+        loading = true; historyError = nil
+        defer { if scope == expected && model.stageRevision == expected { loading = false } }
+        do {
+            let page = try await model.client.history(threadID: threadID, before: before)
+            try Task.checkCancellation()
+            guard scope == expected, model.stageRevision == expected else { return }
+            // The latest page wins at overlapping boundaries. Older pages are prepended
+            // in server order; stage polling updates the tail without dropping history.
+            var seen = Set<String>()
+            let existing = Set(history.map(\.id))
+            history = before == nil ? page.messages : page.messages.filter { !existing.contains($0.id) } + history
+            history = history.filter { seen.insert($0.id).inserted }
+            cursor = page.olderCursor; reloadRequired = false
+        } catch {
+            guard scope == expected, model.stageRevision == expected, !Task.isCancelled else { return }
+            if case BBClientError.http(400) = error, before != nil {
+                reloadRequired = true
+                historyError = "History changed. Reload to continue."
+            } else {
+                historyError = "Could not load history. Try again."
+            }
+        }
     }
 }
 

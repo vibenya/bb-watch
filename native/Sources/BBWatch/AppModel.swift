@@ -16,14 +16,30 @@ final class AppModel: ObservableObject {
     @Published var syncError: String?
     @Published var questionsError: String?
     @Published var sending: Set<UUID> = []
-    @Published var connection = ConnectionSettings()
+    @Published var connection = ConnectionSettings() {
+        didSet {
+            if oldValue != connection {
+                connectionRevision = UUID()
+                stageRevision = UUID()
+                stage = nil
+                stageSyncFailed = false
+            }
+        }
+    }
     @Published var lastSync: Date?
     /// The thread the stage shows and recordings go to by default. Survives relaunch.
     @Published var currentThreadID: String? = UserDefaults.standard.string(forKey: "currentThreadID") {
-        didSet { UserDefaults.standard.set(currentThreadID, forKey: "currentThreadID"); if oldValue != currentThreadID { stage = nil } }
+        didSet {
+            UserDefaults.standard.set(currentThreadID, forKey: "currentThreadID")
+            if oldValue != currentThreadID { stageRevision = UUID(); stage = nil; stageSyncFailed = false }
+        }
     }
+    /// Changing away and back must invalidate both requests and the SwiftUI task key.
+    @Published private(set) var stageRevision = UUID()
+    private var connectionRevision = UUID()
     /// Live projection of the current thread (messages + agent activity).
     @Published var stage: BBThreadState?
+    @Published var stageSyncFailed = false
     /// Set when the next recording should open a new thread in this project instead of replying.
     @Published var newThreadProject: BBProject?
     let recorder = WatchRecorder()
@@ -33,6 +49,7 @@ final class AppModel: ObservableObject {
     private var nextAnswerAttempt = Date.distantPast
     private var answering = false
     private var processingQueue = false
+    private var queueTask: Task<Void, Never>?
     private let pathMonitor = NWPathMonitor()
     private var cachedClient: BBClient?
     private var cachedClientSettings: ConnectionSettings?
@@ -58,11 +75,11 @@ final class AppModel: ObservableObject {
             reload()
             loadCache()
         } catch { self.error = error.localizedDescription }
-        Task { await WatchDiagnostics.shared.record("app.started") }
+        Task { await WatchDiagnostics.shared.record(.appStarted) }
         pathMonitor.pathUpdateHandler = { [weak self] path in
-            Task { await WatchDiagnostics.shared.record(path.status == .satisfied ? "network.available" : "network.unavailable") }
+            Task { await WatchDiagnostics.shared.record(path.status == .satisfied ? .networkAvailable : .networkUnavailable) }
             guard path.status == .satisfied else { return }
-            Task { @MainActor in await self?.processQueue() }
+            Task { @MainActor in self?.resumeQueuedDelivery() }
         }
         pathMonitor.start(queue: DispatchQueue(label: "dev.tokenville.bbwatch.reachability"))
         recorder.onInterruption = { [weak self] in self?.finishCapture() }
@@ -94,12 +111,20 @@ final class AppModel: ObservableObject {
     }
     func cachedMessages(threadID: String) -> [BBMessage] { offlineCache?.messages[threadID] ?? [] }
     func loadMessages(threadID: String) async throws -> [BBMessage] { try await loadState(threadID: threadID).messages }
-    func loadState(threadID: String) async throws -> BBThreadState {
-        let expected = identity
+    func loadState(threadID: String, operation: DiagnosticOperation = DiagnosticOperation(), selection: UUID? = nil) async throws -> BBThreadState {
+        let expected = connectionRevision
+        let requestClient = client
+        await WatchDiagnostics.shared.record(.timelineStarted, operation: operation, selection: selection, foreground: foreground)
         let result: BBThreadState
-        do { result = try await client.timeline(threadID: threadID) }
-        catch { await WatchDiagnostics.shared.record("messages.failed", error: error); throw error }
-        guard identity == expected else { throw AppFailure.connectionChanged }
+        do {
+            try Task.checkCancellation()
+            guard connectionRevision == expected else { throw AppFailure.connectionChanged }
+            result = try await requestClient.timeline(threadID: threadID)
+        }
+        catch { await WatchDiagnostics.shared.record(.timelineFailed, operation: operation, selection: selection, foreground: foreground, error: error); throw error }
+        await WatchDiagnostics.shared.record(.timelineReceived, operation: operation, selection: selection, foreground: foreground, count: result.messages.count)
+        try Task.checkCancellation()
+        guard connectionRevision == expected else { throw AppFailure.connectionChanged }
         if offlineCache == nil { offlineCache = OfflineCache(identity: identity, updatedAt: .distantPast, projects: projects, threads: threads, questions: questions) }
         if offlineCache?.messages[threadID] != result.messages { offlineCache?.messages[threadID] = result.messages; try saveCache() }
         return result
@@ -111,22 +136,65 @@ final class AppModel: ObservableObject {
         return currentThreadID.map { .thread(id: $0) }
     }
     /// True while the screen is on and the app is in front; the stage loop sleeps otherwise.
-    @Published var foreground = true
-    /// Keeps the stage alive. Fast (3 s) only while the agent works or a send is in flight;
-    /// otherwise 20 s, and nothing at all while the app is not in front. Full refresh every ~60 s.
+    @Published var foreground = false
+    /// Read-only polling has its own view lifetime, independent of sidebar/voice work.
+    /// SwiftUI restarts this immediately on selection, send, connection or foreground changes.
     func watchStage() async {
-        var sinceRefresh: TimeInterval = 60
+        guard foreground, connected else { return }
+        let revision = stageRevision
         while !Task.isCancelled {
-            guard foreground else { try? await Task.sleep(for: .seconds(2)); continue }
-            if connected, let id = currentThreadID {
+            guard stageRevision == revision else { return }
+            if let id = currentThreadID {
                 if stage == nil { stage = BBThreadState(messages: cachedMessages(threadID: id)) }
-                if let state = try? await loadState(threadID: id), state != stage { stage = state }
+                let operation = DiagnosticOperation()
+                do {
+                    let state = try await loadState(threadID: id, operation: operation, selection: revision)
+                    guard !Task.isCancelled, stageRevision == revision else {
+                        await WatchDiagnostics.shared.record(.stageDiscarded, operation: operation, selection: revision, foreground: foreground)
+                        return
+                    }
+                    stageSyncFailed = false
+                    if state != stage { stage = state }
+                    await WatchDiagnostics.shared.record(.stageApplied, operation: operation, selection: revision, foreground: foreground, count: state.messages.count)
+                } catch {
+                    guard !Task.isCancelled, stageRevision == revision else {
+                        await WatchDiagnostics.shared.record(.stageDiscarded, operation: operation, selection: revision, foreground: foreground)
+                        return
+                    }
+                    stageSyncFailed = true
+                }
             }
-            if sinceRefresh >= 60 { await refresh(); sinceRefresh = 0 }
             let busy = stage?.working == true || !sending.isEmpty || currentThread?.status == "active"
-            let interval: TimeInterval = busy ? 3 : 20   // ponytail: two speeds; add exponential backoff if LTE data shows up in diagnostics
-            sinceRefresh += interval
-            try? await Task.sleep(for: .seconds(interval))
+            do { try await Task.sleep(for: .seconds(busy ? 3 : 20)) }
+            catch { return }
+        }
+    }
+    /// Sidebar failures or slow questions never postpone the current conversation.
+    func watchSidebar() async {
+        guard foreground, connected else { return }
+        resumeQueuedDelivery()
+        while !Task.isCancelled {
+            // A cancelled prior foreground task may still be unwinding its request.
+            // Wait for that owner instead of skipping this wake-up for a whole minute.
+            while refreshing {
+                do { try await Task.sleep(for: .milliseconds(100)) }
+                catch { return }
+            }
+            guard !Task.isCancelled else { return }
+            await refresh()
+            guard !Task.isCancelled else { return }
+            adoptDefaultThread()
+            do { try await Task.sleep(for: .seconds(60)) }
+            catch { return }
+        }
+    }
+    /// Keep at most one queue runner. Scene cancellation must not interrupt a mutation
+    /// after its acceptance boundary; durable state remains the source of retry decisions.
+    private func resumeQueuedDelivery() {
+        guard queueTask == nil else { return }
+        queueTask = Task {
+            await processQueue()
+            queueTask = nil
         }
     }
     /// Pick a sensible stage on first run: the most recently active visible chat.
@@ -238,53 +306,61 @@ final class AppModel: ObservableObject {
     func refresh() async {
         guard connected, !refreshing else { return }
         let requestIdentity = identity
+        let requestRevision = connectionRevision
         refreshing = true
         defer {
             refreshing = false
-            if identity != requestIdentity { Task { await refresh() } }
+            if connectionRevision != requestRevision { Task { await refresh() } }
         }
         let requestClient = client
-        await WatchDiagnostics.shared.record("refresh.started")
+        let operation = DiagnosticOperation()
+        await WatchDiagnostics.shared.record(.refreshStarted, operation: operation, foreground: foreground)
+        guard !Task.isCancelled, connectionRevision == requestRevision else { return }
         do {
             // Publish chats before independent projects/questions requests: a failed
             // Needs You refresh must never hide the usable conversation list.
             let loadedThreads = try await requestClient.threads()
-            guard identity == requestIdentity else { return }
+            guard !Task.isCancelled, connectionRevision == requestRevision else { return }
             threads = loadedThreads
             syncError = nil
             lastSync = Date()
             offlineCache = OfflineCache(identity: requestIdentity, updatedAt: lastSync!, projects: projects, threads: threads, questions: questions, messages: offlineCache?.messages ?? [:])
             try saveCache()
+            // Publish and persist before yielding to diagnostics or another connection.
+            await WatchDiagnostics.shared.record(.threadsApplied, operation: operation, foreground: foreground, count: loadedThreads.count)
+            guard !Task.isCancelled, connectionRevision == requestRevision else { return }
             do {
                 let loadedProjects = try await requestClient.projects()
-                guard identity == requestIdentity else { return }
+                guard !Task.isCancelled, connectionRevision == requestRevision else { return }
                 projects = loadedProjects
                 offlineCache?.projects = projects
                 try saveCache()
             } catch {
-                guard identity == requestIdentity else { return }
+                guard !Task.isCancelled, connectionRevision == requestRevision else { return }
                 syncError = error.localizedDescription
-                await WatchDiagnostics.shared.record("projects.failed", error: error)
+                await WatchDiagnostics.shared.record(.projectsFailed, operation: operation, foreground: foreground, error: error)
             }
+            guard !Task.isCancelled, connectionRevision == requestRevision else { return }
             do {
                 let candidates = loadedThreads.filter { $0.hasPendingInteraction != false }
                 let loadedQuestions = try await requestClient.questions(threads: candidates)
-                guard identity == requestIdentity else { return }
+                guard !Task.isCancelled, connectionRevision == requestRevision else { return }
                 questions = loadedQuestions
                 questionsError = nil
                 offlineCache?.questions = questions
                 try saveCache()
             } catch {
-                guard identity == requestIdentity else { return }
+                guard !Task.isCancelled, connectionRevision == requestRevision else { return }
                 // Keep cached questions and mark them stale, never imply resolved.
                 questionsError = error.localizedDescription
-                await WatchDiagnostics.shared.record("questions.failed", error: error)
+                await WatchDiagnostics.shared.record(.questionsFailed, operation: operation, foreground: foreground, error: error)
             }
-            await WatchDiagnostics.shared.record("refresh.finished")
-            await processQueue()
+            await WatchDiagnostics.shared.record(.refreshFinished, operation: operation, foreground: foreground)
+            guard !Task.isCancelled, connectionRevision == requestRevision else { return }
+            resumeQueuedDelivery()
         } catch {
-            await WatchDiagnostics.shared.record("refresh.failed", error: error)
-            guard identity == requestIdentity else { return }
+            await WatchDiagnostics.shared.record(.refreshFailed, operation: operation, foreground: foreground, error: error)
+            guard !Task.isCancelled, connectionRevision == requestRevision else { return }
             syncError = error.localizedDescription
         }
     }
@@ -309,11 +385,13 @@ final class AppModel: ObservableObject {
         let requestIdentity = identity
         let requestClient = client
         sending.insert(id); defer { sending.remove(id) }
+        let operation = DiagnosticOperation()
+        await WatchDiagnostics.shared.record(.deliveryStarted, operation: operation, foreground: foreground, count: value.chunks.count)
         do {
             value.serverIdentity = requestIdentity; value.state = .queued; value.error = nil; try save(value)
             if value.transcript?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
                 value.state = .transcribing; try save(value)
-                value.transcript = try await transcribe(value, using: requestClient, identity: requestIdentity)
+                value.transcript = try await transcribe(value, using: requestClient, identity: requestIdentity, operation: operation)
                 guard identity == requestIdentity else { throw AppFailure.connectionChanged }
                 try save(value)
             }
@@ -323,6 +401,7 @@ final class AppModel: ObservableObject {
             guard identity == requestIdentity else { throw AppFailure.connectionChanged }
             // Persist uncertainty BEFORE the irreversible request. Never retry an unknown acceptance.
             value.state = .checkingDelivery; try save(value)
+            await WatchDiagnostics.shared.record(.sendStarted, operation: operation, foreground: foreground)
             switch destination {
             case .thread(let threadID):
                 let receipt = try await requestClient.send(text: text, threadID: threadID)
@@ -333,11 +412,12 @@ final class AppModel: ObservableObject {
                 if identity == requestIdentity { currentThreadID = thread.id; newThreadProject = nil }
                 value.acceptanceReceipt = "Created thread with initial prompt: \(thread.id)"
             }
+            await WatchDiagnostics.shared.record(.sendAccepted, operation: operation, foreground: foreground)
             value.state = .accepted
             if identity == requestIdentity { try save(value); await refresh() }
             else { try store?.saveDraft(value) }
         } catch {
-            await WatchDiagnostics.shared.record("delivery.failed", error: error)
+            await WatchDiagnostics.shared.record(.deliveryFailed, operation: operation, foreground: foreground, error: error)
             // Preserve checkingDelivery for ALL outcomes after the request boundary until reconciled.
             if value.state != .checkingDelivery && value.state != .accepted {
                 let offline = (error as? URLError).map { [.notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost, .cannotFindHost].contains($0.code) } ?? false
@@ -361,7 +441,7 @@ final class AppModel: ObservableObject {
             if !blocked { await deliver(value.id) }
         }
     }
-    private func transcribe(_ draft: RecordingDraft, using requestClient: BBClient, identity requestIdentity: String) async throws -> String {
+    private func transcribe(_ draft: RecordingDraft, using requestClient: BBClient, identity requestIdentity: String, operation: DiagnosticOperation) async throws -> String {
         guard let store else { throw CocoaError(.fileReadUnknown) }
         let folder = try store.chunksDirectory(for: draft.id)
         var results: [String] = []
@@ -374,14 +454,21 @@ final class AppModel: ObservableObject {
                 let cache = folder.deletingLastPathComponent().appendingPathComponent("transcript-\(group.first!.filename)-\(group.last!.filename)-\(group.count).json")
                 if FileManager.default.fileExists(atPath: cache.path) {
                     results.append(try JSONDecoder().decode(String.self, from: Data(contentsOf: cache)))
+                    await WatchDiagnostics.shared.record(.transcriptionCached, operation: operation, foreground: foreground, group: results.count - 1)
                 } else {
                     let upload = folder.deletingLastPathComponent().appendingPathComponent("upload.wav")
                     let chunks = group
+                    await WatchDiagnostics.shared.record(.assemblyStarted, operation: operation, foreground: foreground, group: results.count, count: chunks.count)
                     try await Task.detached(priority: .utility) {
                         try Self.assemble(chunks, folder: folder, output: upload)
                     }.value
+                    await WatchDiagnostics.shared.record(.assemblyFinished, operation: operation, foreground: foreground, group: results.count)
                     guard identity == requestIdentity else { throw AppFailure.connectionChanged }
+                    let bytes = (try? upload.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+                    let audioMilliseconds = duration.isFinite && duration >= 0 && duration < Double(Int.max) / 1000 ? Int(duration * 1000) : nil
+                    await WatchDiagnostics.shared.record(.transcriptionStarted, operation: operation, foreground: foreground, group: results.count, bytes: bytes, audioMilliseconds: audioMilliseconds)
                     let text = try await requestClient.transcribe(file: upload)
+                    await WatchDiagnostics.shared.record(.transcriptionFinished, operation: operation, foreground: foreground, group: results.count)
                     guard identity == requestIdentity else { throw AppFailure.connectionChanged }
                     try JSONEncoder().encode(text).write(to: cache, options: .atomic)
                     try? FileManager.default.removeItem(at: upload)

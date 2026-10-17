@@ -31,9 +31,19 @@ struct BBThread: Codable, Identifiable, Sendable {
     }
 }
 struct BBMessage: Codable, Identifiable, Sendable, Equatable { let id: String; let role: String; let text: String }
+struct BBHistoryCursor: Decodable, Sendable, Equatable {
+    let anchorSeq: Int
+    let anchorId: String
+}
+struct BBHistoryPage: Sendable {
+    let messages: [BBMessage]
+    let olderCursor: BBHistoryCursor?
+}
 /// What the agent is doing right now, projected from the thread timeline.
 struct BBThreadState: Sendable, Equatable {
     var messages: [BBMessage] = []
+    /// Current runtime status; nil until a successful server refresh.
+    var status: String?
     var working = false
     var failed = false
     /// Latest tool/operation title while working, e.g. "Run tests".
@@ -134,9 +144,16 @@ actor BBClient {
         sessionCookie = value
         sessionExpires = expiry
     }
-    private func request(_ path: String, body: Data? = nil, contentType: String = "application/json", mutation: Bool = false, refreshed: Bool = false) async throws -> Data {
+    private func request(_ path: String, query: [URLQueryItem] = [], body: Data? = nil, contentType: String = "application/json", mutation: Bool = false, refreshed: Bool = false, recoveredTransport: Bool = false) async throws -> Data {
+        try Task.checkCancellation()
         try await authenticate()
-        var request = URLRequest(url: serverURL.appendingPathComponent("api/v1/" + path))
+        // Authentication is shared; cancellation of one waiter must not cancel it,
+        // but that waiter must never dispatch a new request afterwards.
+        try Task.checkCancellation()
+        var components = URLComponents(url: serverURL.appendingPathComponent("api/v1/" + path), resolvingAgainstBaseURL: false)!
+        components.queryItems = query.isEmpty ? nil : query
+        guard let url = components.url else { throw BBClientError.invalidServer }
+        var request = URLRequest(url: url)
         request.timeoutInterval = path == "system/voice-transcription" ? 90 : 20
         let sentCookie = sessionCookie
         if let cookie = sentCookie {
@@ -145,13 +162,23 @@ actor BBClient {
         if let body { request.httpMethod = "POST"; request.httpBody = body; request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
         let result: (Data, URLResponse)
         do { result = try await session.data(for: request) }
-        catch { if mutation { throw BBClientError.acceptanceUnknown }; throw error }
+        catch {
+            if mutation { throw BBClientError.acceptanceUnknown }
+            try Task.checkCancellation()
+            // A read can recover once from a dropped LTE connection. Do not replay
+            // POSTs, TLS failures, or cancellation; retain the original error.
+            if body == nil, !recoveredTransport, let failure = error as? URLError,
+               [.networkConnectionLost, .timedOut].contains(failure.code) {
+                return try await self.request(path, query: query, refreshed: refreshed, recoveredTransport: true)
+            }
+            throw error
+        }
         guard let response = result.1 as? HTTPURLResponse else { throw mutation ? BBClientError.acceptanceUnknown : BBClientError.invalidResponse }
         if response.statusCode == 401 || response.statusCode == 403 {
             // A late response from an older session must not invalidate its replacement.
             if sessionCookie === sentCookie { sessionExpires = .distantPast }
             if response.statusCode == 401 && body == nil && !mutation && !refreshed {
-                return try await self.request(path, refreshed: true)
+                return try await self.request(path, query: query, refreshed: true, recoveredTransport: recoveredTransport)
             }
         }
         guard (200..<300).contains(response.statusCode) else {
@@ -170,22 +197,54 @@ actor BBClient {
         return (sidebar.projects + [sidebar.personalProject]).flatMap(\.threads).filter { seen.insert($0.id).inserted }
     }
     func messages(threadID: String) async throws -> [BBMessage] { try await timeline(threadID: threadID).messages }
+    func history(threadID: String, before: BBHistoryCursor? = nil) async throws -> BBHistoryPage {
+        struct Row: Decodable { let id: String; let kind: String; let role: String?; let text: String? }
+        struct Metadata: Decodable { let hasOlderRows: Bool; let olderCursor: BBHistoryCursor? }
+        struct Page: Decodable { let rows: [Row]; let timelinePage: Metadata }
+        var query = [URLQueryItem(name: "segmentLimit", value: "30")]
+        if let before {
+            query += [URLQueryItem(name: "beforeAnchorSeq", value: String(before.anchorSeq)),
+                      URLQueryItem(name: "beforeAnchorId", value: before.anchorId)]
+        }
+        let page = try decoder.decode(Page.self, from: await request("threads/\(threadID)/timeline", query: query))
+        if page.timelinePage.hasOlderRows && (page.timelinePage.olderCursor == nil || page.timelinePage.olderCursor == before) { throw BBClientError.invalidResponse }
+        let messages = page.rows.compactMap { row -> BBMessage? in
+            guard row.kind == "conversation", let role = row.role, let text = row.text else { return nil }
+            return BBMessage(id: row.id, role: role, text: text)
+        }
+        return BBHistoryPage(messages: messages, olderCursor: page.timelinePage.hasOlderRows ? page.timelinePage.olderCursor : nil)
+    }
     func timeline(threadID: String) async throws -> BBThreadState {
-        struct Row: Decodable { let id: String; let kind: String; let role: String?; let text: String?; let status: String?; let title: String?; let command: String? }
+        struct Row: Decodable {
+            struct Presentation: Decodable { let title: String? }
+            let id: String; let kind: String; let turnId: String?; let role: String?; let text: String?
+            let status: String?; let title: String?; let command: String?; let toolName: String?
+            let presentation: Presentation?
+        }
         struct Page: Decodable { let rows: [Row] }
-        let page = try decoder.decode(Page.self, from: await request("threads/\(threadID)/timeline"))
+        struct Thread: Decodable {
+            struct Runtime: Decodable { let displayStatus: String }
+            let status: String; let runtime: Runtime
+        }
+        // shortcut: these reads are not an atomic snapshot; polling reconciles a turn
+        // transition between them until BB exposes a unified watch snapshot.
+        async let pageData = request("threads/\(threadID)/timeline")
+        async let threadData = request("threads/\(threadID)")
+        let page = try decoder.decode(Page.self, from: await pageData)
+        let thread = try decoder.decode(Thread.self, from: await threadData)
         var state = BBThreadState()
+        state.status = thread.runtime.displayStatus
         state.messages = page.rows.compactMap { row in
             guard row.kind == "conversation", let role = row.role, let text = row.text else { return nil }
             return BBMessage(id: row.id, role: role, text: text)
         }
-        if let turn = page.rows.last(where: { $0.kind == "turn" }) {
-            let finished: Set<String> = ["completed", "error", "failed", "cancelled", "canceled", "aborted"]
-            state.working = !finished.contains(turn.status ?? "")
-            state.failed = turn.status == "error" || turn.status == "failed"
-        }
-        if state.working, let work = page.rows.last(where: { ($0.kind == "work" || $0.kind == "system") && ($0.title ?? $0.command) != nil }) {
-            state.activity = work.title ?? work.command
+        state.working = ["pending", "starting", "active", "stopping", "provisioning"].contains(thread.runtime.displayStatus)
+        state.failed = thread.runtime.displayStatus == "error"
+        // A completed turn or a dangling old tool cannot describe current activity.
+        if state.working, let latestTurn = page.rows.last(where: { $0.turnId != nil })?.turnId,
+           !page.rows.contains(where: { $0.kind == "turn" && $0.turnId == latestTurn && ["completed", "error", "interrupted"].contains($0.status ?? "") }),
+           let work = page.rows.last(where: { $0.kind == "work" && $0.turnId == latestTurn && $0.status == "pending" }) {
+            state.activity = work.presentation?.title ?? work.title ?? work.command ?? work.toolName
         }
         return state
     }

@@ -11,7 +11,7 @@ Supply locally owned artwork at the paths described in the [root README](../READ
 open native/BBWatch.xcodeproj
 ```
 
-`check.sh` runs nine filesystem tests, the HTTP contract and Chats projection checks, a real audio checkpoint roundtrip, strict Swift 6 typechecking, XcodeGen, an unsigned device build, and an ad-hoc signed simulator build. Simulator signing is necessary for Keychain access. It does not send messages to live BB.
+`check.sh` runs nine filesystem tests, the HTTP contract and Chats projection checks, a real audio checkpoint roundtrip, bounded diagnostics privacy checks, strict Swift 6 typechecking, XcodeGen, an unsigned device build, and an ad-hoc signed simulator build. Simulator signing is necessary for Keychain access. It does not send messages to live BB.
 
 Build products are under ignored `.build-xcode-*` directories. `project.yml` is the authoritative Xcode project configuration; `Package.swift` exposes the Foundation-only core for macOS tests.
 
@@ -26,7 +26,8 @@ In BB, generate a code under **Settings → Mobile → Add mobile device**. On t
 The UI is a horizontal three-page `TabView`: **Record** (left) ← **Stage** (centre, home) → **Threads** (right).
 
 - **Stage** shows one thread: project, a large mood word, the agent's current activity and its latest reply. Tap opens the full thread; long-press opens Settings. The mood sets the background colour:
-  - `READY` — thread has no reply yet. `WORKING` — agent is active or owes an answer to your last message.
+  - `LOADING` — selected thread has not been refreshed; `SYNC FAILED` — saved content remains visible after a failed refresh; `WAITING` — BB host is unavailable.
+  - `READY` — refreshed thread has no reply yet. `WORKING` — agent is active or owes an answer to your last message.
   - `NEEDS YOU` — an open question or a pending answer (single choice, ten-second Undo).
   - `DONE` — the agent has replied and is idle. `FAILED` — agent error or a send that failed.
   - `SENDING` — a recording is being transcribed or delivered. `OFFLINE` — not connected to BB.

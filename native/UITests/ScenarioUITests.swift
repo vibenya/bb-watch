@@ -50,7 +50,7 @@ final class ScenarioUITests: XCTestCase {
         let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: words.map { NSPredicate(format: "label ==[c] %@", $0) })
         return app.staticTexts.matching(predicate).firstMatch
     }
-    func anyMood() -> XCUIElement { mood(["READY", "WORKING", "NEEDS YOU", "DONE", "FAILED", "SENDING", "OFFLINE"]) }
+    func anyMood() -> XCUIElement { mood(["READY", "WORKING", "NEEDS YOU", "DONE", "FAILED", "SENDING", "OFFLINE", "LOADING", "SYNC FAILED", "WAITING"]) }
     func closeSheet() {
         let close = app.buttons["Close"].firstMatch
         if close.waitForExistence(timeout: 3) { close.tap() } else { app.swipeDown() }

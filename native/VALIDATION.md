@@ -60,3 +60,38 @@ After the latest physical update, the user sent a dictated message from Apple Wa
 ## Stage redesign — 2026-10-16
 
 The Home list was replaced by a three-page UI (Record, Stage, Threads). Earlier entries above that mention the Home screen, the Record button on it, or navigation through Home list rows describe the previous UI. Not re-verified here: `./native/check.sh` against the new UI, hardware behavior, Always On display and recording from the new Record page. The simulator cannot record (AVAudioEngine input aborts). See `../docs/HANDOFF.md`.
+
+## Sync repair integration — 2026-10-17
+
+Lead ran the complete `./native/check.sh` after per-issue integration: nine core
+tests pass; expanded HTTP checks cover current runtime/flat work rows, bounded
+GET recovery, no TLS/mutation replay, cancellation and history cursor encoding,
+401 retry and stale-cursor failure. Chats, ordered 84,000-sample audio checkpoint,
+new diagnostics privacy/correlation/200-line retention, Swift 6 typecheck and
+both watchOS/simulator SDK builds pass.
+
+These checks do not prove physical-watch latency or dynamic SwiftUI task race
+behavior. No live prompt or transcription was sent. Voice assembly measurement
+is synthetic host-only; see specs/voice-delivery-latency.md. No device install
+is part of this integration. Event transport remains a design proposal.
+
+Read-only `ScenarioUITests/testTour` passed on the 49mm Ultra 2 watchOS 26.1
+simulator after integration: stage, Record, Threads, selected-thread stage and
+full thread sheet were traversed; the accessibility tree exposed Listen controls.
+This existing tour is observational, not a latency or stale-response assertion.
+The simulator queue contained only an accepted draft before launch; no live
+message/recording scenario ran. Long-question and physical layout acceptance
+remain outstanding.
+
+Independent review found a diagnostics suspension between thread publication and
+cache persistence. Publication/cache writes are now synchronous after a
+connection-generation check; each later publication checks that generation again.
+A second independent control-flow review found no remaining stale publication
+in refresh. A dynamic AppModel connection-race harness is still absent.
+
+Lead inspection of actual simulator diagnostics also found time-only timestamps.
+A real-file regression failed on that formatter, then passed with full ISO 8601
+date/time/timezone and fractional seconds. The complete native check was rerun
+after both repairs and passed, including both SDK builds. Simulator observation
+showed selected-thread publication preceding completion of sidebar refresh;
+this is a local observation, not a latency benchmark.

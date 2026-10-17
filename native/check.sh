@@ -38,6 +38,11 @@ run audio-check-compile swiftc -swift-version 6 \
     Checks/AudioCheckpointCheck.swift -o "$TMP_DIR/AudioCheckpointCheck"
 run audio-check "$TMP_DIR/AudioCheckpointCheck"
 
+run diagnostics-compile swiftc -swift-version 6 \
+    Sources/BBWatch/Diagnostics.swift Checks/DiagnosticsCheck.swift \
+    -o "$TMP_DIR/DiagnosticsCheck"
+run diagnostics-check "$TMP_DIR/DiagnosticsCheck"
+
 run strict-watchsim-typecheck xcrun --sdk watchsimulator swiftc -typecheck \
     -swift-version 6 -target arm64-apple-watchos26.0-simulator \
     Sources/BBWatch/*.swift Sources/BBWatchCore/DurableStore.swift
