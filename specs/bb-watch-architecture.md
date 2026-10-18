@@ -1,5 +1,10 @@
 # BB Watch 2.0 — architecture and gated implementation plan
 
+**Pending extension:** the [voice-notes direction](bb-watch-voice-notes-direction.md)
+adds Auto destination/model routing and pinned Reply. This architecture's complete
+target-at-intake assumption must be revised and reviewed before that extension
+is implemented; the existing review does not validate it.
+
 Status: **reviewed for gated Phase 0; runtime gates unproven.** Companion to the
 [product spec 2.0](bb-watch-product-spec.md), [design 2.0](../design.md) and the
 [review](reviews/bb-watch-v2-fable-review.md). Platform facts cite the installed

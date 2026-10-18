@@ -1,5 +1,12 @@
 # BB Watch — voice delivery design
 
+**Latest direction:** [voice-notes update](specs/bb-watch-voice-notes-direction.md)
+adopts merged root history, reduced statuses, the red control above its recipient
+and plugin-assisted Auto routing / explicit Reply. [Visual references](docs/design/voice-notes-references.md).
+The 2.0 baseline below and its sprite require reconciliation with that update
+before implementation; do not treat old top-recipient or mandatory-target flows
+as the latest design.
+
 Version 2.0 · visual clarification 18 October 2026. Design for a fresh build,
 not the installed application. [Product contract](specs/bb-watch-product-spec.md).
 [Architecture and gated plan](specs/bb-watch-architecture.md).

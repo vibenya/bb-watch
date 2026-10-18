@@ -1,5 +1,9 @@
 # BB Watch — voice delivery interface
 
+**Direction update:** [voice notes and automatic routing](bb-watch-voice-notes-direction.md)
+records the user's newer decisions. It supersedes this baseline where stated;
+its routing/receipt/order contract still requires architecture validation.
+
 Version 2.0 · 18 October 2026 · **Reviewed product contract; not implemented.**
 
 This specification supersedes 1.2 for the next implementation. Existing application
