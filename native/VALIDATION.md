@@ -36,9 +36,13 @@ removed. Detailed limits and reproduction: `../specs/voice-delivery-latency.md`.
 
 Independent integration advisor found no actionable blocker after the full gate.
 Signed development build passed; codesign, 0.2.0/2 metadata, AppIcon and provisioning
-for the target watch were checked. **No new physical install/launch is claimed:**
-CoreDevice reports the paired watch unavailable (4016). In-place installation and
-post-install health/recording retention checks remain pending availability.
+for the target watch were checked. Physical in-place installation and launch
+completed on 2026-10-18. Initial CoreDevice 3002/IXRemoteErrorDomain 6 connection
+loss was reconciled by inventory showing the old 0.1.0/1 app; one retry succeeded.
+Installed inventory confirmed 0.2.0/2, and launch returned a process identifier.
+A subsequent process inventory confirmed the new app was running. All 68 original
+CAF paths and sizes matched before/after (25,660,928 bytes); audio contents were
+not read. No uninstall or live test prompt was used.
 Physical audibility, microphone, interruptions, network recovery, standalone LTE,
 long-duration/power-loss/battery and general recognition quality remain unverified.
 The hosted summary gateway is not part of this build; UI excerpts remain source-backed.

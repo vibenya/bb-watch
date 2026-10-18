@@ -36,12 +36,14 @@ Lead inspected settled native screenshots. Independent integration review found
 no blocker. Signed development build, signature, version/icon metadata and target
 watch provisioning were verified.
 
-**Device update remains pending:** the paired watch is currently unavailable to
-CoreDevice (4016); the signed build has not yet been installed or launched on
-hardware. Installation must be in place, preserving the app container/Keychain.
-No uninstall or live agent test prompt was used. Full hardware microphone,
-speaker/headphones, interruptions, standalone LTE, power-loss and battery acceptance
-remain separate. A cheap-model summary gateway is not implemented; the compact
+**Physical update completed on 2026-10-18:** version 0.2.0 (2) was installed
+in place and launched on the Ultra 2. The first attempt lost its installation
+service connection; inventory confirmed 0.1.0 remained before a successful retry.
+Post-install inventory confirmed 0.2.0/2. All 68 original CAF paths and sizes
+matched the pre-install manifest (25,660,928 bytes). No uninstall or live agent
+test prompt was used. Install/launch and retained-file metadata do not establish
+hardware microphone, speaker/headphones, interruptions, standalone LTE,
+power-loss or battery acceptance; these remain separate. A cheap-model summary gateway is not implemented; the compact
 view uses actual activity/source excerpts with full-original access.
 
 The entries below describe earlier builds and historical evidence.
