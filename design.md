@@ -1,5 +1,11 @@
 # BB Watch — voice delivery design
 
+**Minimal variant:** [BB Quick Voice](specs/bb-watch-quick-voice.md) defines the
+latest two-action proposal: shortcut starts capture, Finish & send queues
+compressed delivery, optional manual target below the control. Its
+[concept](docs/design/quick-voice.png) replaces the earlier sprite for this variant.
+Technical/hardware proof remains pending.
+
 **Latest direction:** [voice-notes update](specs/bb-watch-voice-notes-direction.md)
 adopts merged root history, reduced statuses, the red control above its recipient
 and plugin-assisted Auto routing / explicit Reply. [Visual references](docs/design/voice-notes-references.md).
