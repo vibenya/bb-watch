@@ -1,9 +1,12 @@
 # BB Watch — voice delivery design
 
-Version 2.0 · 18 October 2026. Reviewed design for a fresh build,
+Version 2.0 · visual clarification 18 October 2026. Design for a fresh build,
 not the installed application. [Product contract](specs/bb-watch-product-spec.md).
 [Architecture and gated plan](specs/bb-watch-architecture.md).
 [Fable review](specs/reviews/bb-watch-v2-fable-review.md).
+The behavioral baseline is the reviewed 2.0 contract. The state inventory and
+concept sheet below elaborate it; the concept sheet is not a native screenshot
+or an additional platform validation.
 
 ## 1. Design principle
 
@@ -79,8 +82,7 @@ as invalid until explicitly repaired; no silent fallback to a different model.
 After the context's first Send, its project/model are frozen. Keep those rows
 visible as read-only values without chevrons; they do not open pickers. A short
 caption, `Choose New thread to change project or model`, explains the restriction.
-Later recordings
-in that pending context follow the same future thread. A different project/model
+Later recordings in that pending context follow the same future thread. A different project/model
 requires explicitly choosing New again. A receipt resolving that context cannot
 change the target of an unrelated current compose draft.
 
@@ -233,3 +235,124 @@ Primary guidance:
 This is a product-specific design, not Apple certification. The architecture's
 platform/auth/ingress proofs remain release gates; UX cannot promise immediate
 background execution or exactly-once core mutation unsupported by BB.
+
+## 10. Visual state inventory
+
+The [concept sprite](docs/design/voice-delivery-v2.png) illustrates the states
+below. [Generation brief](docs/design/voice-delivery-v2-prompt.md). Rendered
+controls and text are illustrative; this document and the product spec govern
+behavior if a generated pixel differs. Thread/project names and model catalog
+entries in the picture are examples, not queried BB data. No runtime claim is
+made by the artwork.
+The generated panels do not establish pixel measurements: control diameters,
+anchors and viewport proportions still vary in the image. Implementation must
+use the shared sizes/anchors in §1 and §10 and validate native 49/45 mm screens;
+do not copy those illustrative spacing differences into the app.
+
+### Primary recorder and delivery are independent
+
+The recipient row is a compact target button: title, optional project subtitle,
+chevron. It has no agent-activity glyph, Working caption or agent runtime. A
+transfer receipt belongs to its own row below capture controls; it must not
+describe a new draft's destination by accident. Its caption, glyph and age refer
+to the same recording, and tapping it opens that recording's detail.
+
+| Panel | Composition | Main interaction and next state |
+|---|---|---|
+| 01 Ready | Recipient, central red circle, history below | Record starts without a selected target or connection; input activation precedes Recording |
+| 02 Recording | Same recipient and center anchor; quiet five-bar input; small elapsed; red pause; separate lime up arrow | Pause seals this part; Send freezes this draft only after local enqueue succeeds |
+| 03 Paused | Same anchors; static input; red circle; up arrow; New recording; history | Circle resumes this draft; New recording parks it and returns Ready without starting input |
+| 04 New | Ready recorder with Project and Model below primary controls | Each picker changes one local value; thread creation waits for computer-side dispatch |
+| 05 Threads | Full-screen one-value list, X; New thread and recents | A row commits and dismisses; X commits nothing; recording indicator and Pause to search appear when needed |
+| 06 Project | Full-screen one-value list, X | Pick returns to New; X leaves its existing value; no automatic Send |
+| 07 Model | Full-screen catalog, Project default, X | Pick returns to New; unavailable catalog shows a retry affordance and retains known default intent |
+| 08 Queued | Ready recorder plus a separate queued receipt below | Another recording is immediately available; receipt opens detail; dimming does not change the recipient or queue identity |
+| 09 Received | Ready recorder plus a lime check and Received by BB receipt | Upload ownership is complete; no ASR waiting screen or agent Done state replaces the recorder |
+| 10 Recordings | Pushed list: recipient, delivery/draft glyph and caption, secondary age | Row opens detail; Back returns to root; Continue is an explicit draft action |
+| 11 Delivery detail | Pushed detail: exact recipient, receipt, recorded duration, playback, safe actions | Back returns to its actual invoker; received copy offers Delete local copy with non-retraction explanation |
+| 12 BB plugin | Computer-side inbox with audio, processing facts and actual thread link | Retry ASR and ambiguous submission recovery happen here |
+
+Recording, paused, New, queued and received are compositions of the same root,
+not five pages or a paging carousel. The root retains its target after Send;
+choosing a different target for the next draft never retargets that receipt.
+While New is pending, follow-ups retain its context. A background mapping to the
+real thread updates only that same context, never an unrelated draft.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Ready
+  Ready --> Starting: Record
+  Starting --> Recording: First input buffer
+  Starting --> Ready: Activation fails on an empty compose
+  Paused --> Starting: Red record circle
+  Starting --> Paused: Resume activation fails
+  Recording --> Paused: Pause or interruption
+  Recording --> Paused: Send with incomplete target
+  Paused --> Paused: Choose target or dismiss picker
+  Paused --> Ready: New recording parks draft
+  Recording --> Ready: Send and durable enqueue succeeds
+  Paused --> Ready: Send and durable enqueue succeeds
+  Ready --> Paused: Continue saved draft
+```
+
+The diagram describes compose state only. An enqueue failure keeps the stopped
+recording paused and recoverable, with its audio and target; it does not clear
+the active draft or draw a queued receipt. No transition begins from a timer.
+
+### Receipt vocabulary and repair
+
+| Actual fact | Visible delivery row | Detail action |
+|---|---|---|
+| Unsent local draft | Neutral draft glyph; Saved locally | Continue, replay or confirmed Delete; replay requires capture paused |
+| Durable local enqueue, not currently transferring | Clock; Queued | Reconcile status; Cancel delivery only through confirmed server abandonment |
+| Actual transfer progress observed | Upload glyph; Sending | Acknowledged progress if known; no fabricated percent or ETA |
+| Network or BB reachability failure known | Clock; Waiting for network or Waiting for BB | Retain audio; automatic bounded recovery; explicit transfer Retry reuses the operation |
+| Final response lost, receipt unknown | Neutral unresolved glyph; Checking receipt | Query the same recording; no Send again, safe-delete claim or Cancelled claim |
+| Durable audio/job receipt obtained | Lime check; Received by BB | Replay or confirmed Delete local copy; ASR facts remain secondary |
+| Transfer needs user action | Attention glyph; Needs attention | Explain pairing, unavailable recipient or storage cause; show only applicable repair |
+| Server confirms abandoned operation | Neutral cancelled glyph; Cancelled | Delete or explicit Send to another thread as a replacement operation |
+
+Received by BB stays a successful audio-delivery fact if later ASR fails.
+No agent status is substituted for it. A local receipt refresh does not trigger
+repeated haptics, reanimate unchanged text or move focus. Never label OS-deferred
+tasks Sending solely because a task has been scheduled.
+
+### States outside the sprite
+
+| Case | Presentation and exit |
+|---|---|
+| Starting input | Quiet Starting… caption; no live bars or success haptic until real input; failure returns to prior recoverable mode |
+| Interrupted capture | Paused composition, Paused · interrupted and known cause; red circle resumes explicitly |
+| Low storage | Paused composition and Storage full, recording saved; previously checkpointed audio remains; no false full-duration claim |
+| Unpaired/offline first launch | Recording remains available; no target data is invented; Settings explains Pair BB; drafts can be parked |
+| Missing target on Send | Stop/pause, open Threads or missing Project; choose or X returns Paused; Send must be tapped again |
+| Rejected frozen target | Needs attention with the cause; cancellation confirmation precedes replacement; no silent model/thread fallback |
+| New context already sent once | Project/Model visible as read-only values with no chevrons; explanation in §3; choose New thread for another configuration |
+| Account change/revocation | Existing outbox stays bound to its original BB identity; pairing repair does not reassign audio; new unsent capture remains possible |
+| Empty history or picker | Short empty-state caption and the existing Back/X; no extra Get started wizard |
+
+### Motion specification
+
+Compose controls keep their centers between recording and paused. Pause bars
+replace the red circle in place; the quiet meter freezes on Pause, rather than
+continuing a fake waveform. Enqueue success returns that center to the idle
+record control and inserts the receipt below it. Only a new receipt revision
+crossfades its glyph/caption in approximately 150–200 ms, without text sliding
+through adjacent controls or a typewriter effect. Reduce Motion uses an
+immediate content replacement. Native push and sheet transitions remain native.
+
+### Desktop inbox detail
+
+The default inbox is a list, not a conversation: received time, target, local
+audio playback and processing caption. Selecting an item reveals retained
+audio, transcription groups/error, complete transcript when available, and
+verified core acknowledgement. Captions distinguish Received, Transcribing,
+Waiting for earlier recording, Submitted and Needs attention. Submitted means
+BB core acknowledged input, not that an agent finished.
+
+Retry ASR uses the same audio/job and completed groups. Acceptance unknown shows
+the transcript, any known thread and Reconcile; Send again requires the
+architecture's explicit duplicate-risk confirmation. Retention and Delete audio
+explain what is removed without erasing receipt/order facts. Plugin settings name
+the configured voice service and explain hosted processing when applicable.
+No watch button pretends to open a thread on the distant computer.
