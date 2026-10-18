@@ -1,298 +1,269 @@
-# BB для Apple Watch — продуктовая спецификация
+# BB Watch — voice delivery interface
 
-Версия 1.2 · 17 октября 2026
+Version 2.0 · 18 October 2026 · **Reviewed product contract; not implemented.**
 
-Целевое поведение согласованного Glance redesign. Это требования, не утверждение о завершённой реализации. Версия 1.2 заменяет трёхстраничную навигацию версии 1.1. Детали реализации и переходов: [design.md](../design.md). Старый HTML-прототип и ранние макеты не определяют продукт.
+This specification supersedes 1.2 for the next implementation. Existing application
+code is not a reference implementation. [Design](../design.md) defines navigation;
+[architecture and gated plan](bb-watch-architecture.md) record independent
+[Fable review](reviews/bb-watch-v2-fable-review.md) and lead validation.
+Approval covers the documented Phase 0 proofs; runtime gates remain unproven.
+Version 1.2 is archived for the
+installed build; it must not leak requirements into the fresh implementation.
 
-## 1. Продукт и результат
+## 1. Job and boundary
 
-Автономный голосовой клиент BB на Apple Watch Ultra 2 LTE. Отдать направление агенту, изредка проверить задачу и активность, вернуться к реальному миру. Минимум действий и отвлечений; детали по запросу.
+When I have a thought for an agent, I want to record it on my watch and send it
+to the right BB thread, so I can return to real life without watching a spinner,
+keeping my wrist raised, or opening my phone.
 
-| Когда | Хочу | Чтобы |
+The product comprises a small independent watchOS voice recorder/delivery client
+and a BB plugin on the computer. The plugin is an external-input adapter, like
+a Telegram connector. BB remains the workspace, conversation and agent runtime.
+The watch is not a second BB workspace. It owns capture, local originals,
+recipient intent and transfer. The plugin owns durable audio intake, transcription
+and submission to BB. A hosted ASR service may be called by the computer; audio
+must never go directly from the watch to an ASR provider.
+
+**The watch's success boundary is a durable BB audio receipt**, not completed
+transcription or agent output. Receiving an HTTP response, uploading all bytes,
+accepting a transcript and completing an agent task are distinct facts.
+
+## 2. Actors and first release
+
+- User with an Apple Watch Ultra 2, independently connected over LTE/Wi-Fi.
+- Paired BB plugin with a reachable BB computer; no nearby iPhone requirement.
+- BB's configured transcription service and the selected existing/new thread.
+- The computer may be asleep/offline. The watch safely queues audio until it
+  can reach the plugin. No claim that this product wakes a sleeping computer.
+
+Included: native full-screen recorder; pause/resume; autosave; explicit Send;
+thread selection; New with project and optional model override; durable outbox;
+file-backed background transfer; receipt reconciliation; minimal recording
+history with local audio replay/delete; desktop intake/transcription/status UI;
+recovery without replaying an ambiguously accepted agent message.
+
+Excluded from the watch: transcript generation/editing; provider API keys;
+agent-thinking views, conversation reader, live task summaries, question-choice
+workflows, answer speech and a miniature BB sidebar. These are deliberate changes
+from 1.2. Thread/model selection is a delivery affordance, not workspace management.
+No automatic recording, automatic Send, autoplay, notifications or audio discard on dismissal.
+
+## 3. Everyday behavior
+
+1. Launch to one full-screen recorder. After the system microphone permission
+   has been granted, one conspicuous Record control starts capture, including
+   offline/unpaired. No project/model prerequisite. Pending activation is honest;
+   microphone denial/unavailability shows a recoverable state, never a fake meter.
+2. A compact recipient row names the current target or says `Choose thread`.
+   It is visible before Send; during recording it identifies this draft's target.
+3. Recordings checkpoint locally. Pause stops input; resume continues the same
+   draft. Wrist-down capture must continue with the legitimate recording audio
+   session; OS interruption, storage stop or termination preserves finalized
+   parts and returns as `Paused · interrupted`, with the cause when known. An
+   incomplete capture is never silently presented as finished. Actual wrist-down
+   and not-frontmost capture are hardware gates, separate from transfer APIs.
+4. Send is explicit and available during recording or pause. It finishes capture,
+   freezes recipient and immutable audio manifest, and queues delivery durably.
+   Without a complete recipient, Send first pauses capture and opens the required
+   chooser (Threads, or Project for New without a project). Selection returns to
+   the paused recorder for a final explicit Send. Choosing a target never sends.
+5. After durable enqueue, the recorder is immediately ready for another thought.
+   A compact latest-delivery row links to the outbox; no modal progress lock.
+6. Wrist down, screen dimmed and ordinary app backgrounding do not require the
+   user to resume ASR or keep the recorder open. The OS may defer networking;
+   local audio and transfer identity persist. No promise of an OS scheduling ETA.
+7. `Received by BB` means the plugin durably holds the complete validated original,
+   its exact recipient intent and a recoverable processing job. ASR may start
+   later and may fail. This cannot turn back into a watch upload failure.
+8. The plugin transcribes complete audio in ordered groups within the voice
+   service's verified size/time envelope, preserving completed results across
+   retry/restart. A failed group cannot silently disappear or cause submission
+   of incomplete text. The complete text becomes one logical message to the
+   exact target. BB-side errors are handled on BB; no re-dictation or re-upload
+   just because ASR failed.
+9. One active compose ID restores the same paused draft on return. Other autosaved
+   unsent drafts may remain in history. An explicit secondary `New recording`
+   action parks the current paused draft; `Continue` restores a chosen older
+   draft. Neither action sends or deletes anything, nor starts the microphone.
+   Users can save several thoughts while unpaired with no available recipient.
+
+## 4. Recipient rules
+
+- Use a small recent-threads list with search on demand and a `New thread` row.
+  Preserve exact child-thread IDs. Do not replace a selected child with a family.
+  Hidden/archived/deleted/unavailable recipients are not silently substituted.
+- A cached target remains selectable offline, with freshness explained when
+  relevant. BB validates authorization and availability before processing.
+- Existing thread: show its actual title; do not require choosing a model.
+- New: choose a project; `Project default` is a valid model choice. Optional
+  overrides come only from the plugin's verified catalog. No required title.
+- New is local intent. Selecting New returns to the recorder; Project and Model
+  each use a separate single-level sheet. Picking a value commits only that
+  choice; Close commits nothing. No wizard or extra `Use target` step.
+- The real thread is created at the plugin's first dispatch of the New context,
+  with full initial transcript and a durable context correlation marker. Mapping
+  a found thread back to its context is not proof that its first prompt was
+  accepted: an ambiguous spawn is reconciled or blocked, never blindly repeated.
+- The current compose context has a stable ID. A follow-up to a pending New
+  context goes to the same future real thread. Choosing `New thread` explicitly
+  again creates an independent context. No fabricated server thread IDs.
+- Once enqueued, recipients and New configuration are frozen. Later draft target
+  changes cannot mutate an already pending context; an explicit independent New
+  is required for a different project/model. Background receipts never move UI.
+- Retargeting an enqueued item requires confirmed nonacceptance or a durable
+  abandoned-operation fence from BB before creating a replacement operation.
+  Missing acknowledgements and best-effort cancellation are insufficient. Keep
+  original audio/identity while acceptance is unknown; received items are repaired
+  on BB, never silently sent somewhere else.
+- Per-recipient Send order is preserved, including audio that finishes uploading
+  out of order. Separate existing threads and independent New contexts progress
+  independently. A failed earlier ASR may be explicitly skipped/repaired on BB;
+  no silent reordering of later messages.
+
+## 5. Navigation and visual behavior
+
+The [design contract](../design.md) must enumerate every exit and return path.
+One full-screen recording surface, native list navigation and focused system
+sheets; no custom stack of rounded pseudo-phone screens. Short English UI copy.
+Black base, white text, sparse lime accent, red only for capture controls.
+
+A sheet has an ordinary visible Close (X). It closes that sheet, returns to the
+same parent/draft/scroll position and never starts or resumes recording, selects
+a value, sends, deletes, or navigates to a different root. Sheets have no navigation hierarchy and no Back. Picker selection commits one
+chosen value and returns to the recorder. Dismissal without selection leaves
+values unchanged. Recordings/detail/settings use native pushes and Back pops the
+actual invoking path. No microphone button masquerades as dismissal; the chooser
+is opened by its visible row, without a custom swipe shortcut.
+
+Recorder mode, icon changes, captions, haptics and accessibility labels agree.
+One small truthful stage caption is allowed for ambiguous transfer/failure states;
+no giant status word, fake percentage, meaningless waveform or looping pulse
+that implies live input when none exists. Short opacity/content transitions,
+Reduce Motion, Dynamic Type, VoiceOver and Always On are part of acceptance.
+At default text size on 49 mm and the supported smaller watch size, the first
+recorder viewport shows recipient, recording/pause/resume and available Send
+without scrolling. Optional New fields and history do not push primary controls
+out of view. Larger accessibility text scrolls naturally with the Crown.
+
+## 6. Ownership and receipts
+
+| Fact | Owner and observable evidence | Watch presentation |
 |---|---|---|
-| Появилась мысль | Одним действием начать запись | Не терять мысль на выборе контекста |
-| Проверяю работу | Видеть задачу и краткую текущую активность | Понять, занят ли агент нужным делом |
-| Меняю направление | Записать уточнение в видимый тред | Не открывать большой чат |
-| Работаю с несколькими задачами | Видеть адресата и быстро сменить его | Не перепутать контекст |
-| Нет сети или обработка не удалась | Сохранить оригинал и честный статус | Не диктовать заново |
-| Нужен ответ или выбор | Прочитать сообщение и нажать вариант либо записать голос | Продолжить работу с минимумом действий |
-| Нужны подробности | Открыть оригинал/историю/прослушивание | Проверить детали по запросу |
+| Audio checkpointed | Watch durable draft and finalized original parts | Saved locally |
+| Explicit Send persisted | Watch immutable manifest + recipient + operation ID | Queued |
+| Transfer scheduled/in progress | OS task + reconciled acknowledged bytes | Waiting / Sending |
+| Plugin holds all audio | Durable receipt with recording ID, validated manifest/hash, target/context and job ID | Received by BB |
+| ASR pending/running/failed | Plugin durable job, retained original | Detail only, no main-screen dependency |
+| Transcript accepted as BB input | Verifiable dispatch acknowledgement or reconciled core record | Detail only |
+| Dispatch acceptance unknown | Plugin retains operation and pauses automatic dispatch | Needs attention on BB |
 
-Главное обещание: сбой не уничтожает подтверждённые локальные части записи. Сохранено на часах, транскрибируется, отправляется, принято BB и агент работает — разные факты.
+Do not translate `Received by BB` to agent `Done`. Duplicate receipt/status
+queries are safe. An upload receipt lost in transit is reconciled by the stable
+recording ID. A retry of the same recording cannot create a new BB processing job.
+There is one processing job per recording: the receipt's `jobId` equals its
+`recordingId` and remains stable through transcription retries.
 
-## 2. Решения и границы релиза
+The plugin may not claim exactly-once thread mutation without verified BB-side
+idempotency/reconciliation. It must durably mark the dispatch boundary, preserve
+actual acknowledgements, and stop replay after ambiguous acceptance. This is a
+release-critical capability/limitation, not an undocumented retry policy.
 
-- Native SwiftUI, watchOS 26+, собственная LTE/Wi-Fi связь; iPhone не требуется.
-- Две главные композиции: **Тред** и **Выбор треда**. Запись, обработка, сообщение, вопрос и результат — состояния одного рабочего блока.
-- Главная открывает текущий тред; одна нижняя кнопка микрофона запускает запись. Адресат по умолчанию текущий; выбрать другого можно до Send.
-- Новый тред — локальное состояние `New` того же экрана: Project, Model, микрофон. Без названия, Continue/Create и мастера. Серверный тред создаётся только при первом явном Send.
-- Явная отправка стрелкой вверх доступна при записи и паузе. Иконки без видимых Record/Send/Resume; VoiceOver получает ясные labels.
-- Autosave при захвате, паузе и выходе; ручной Save отсутствует. Никаких произвольных лимитов длительности; части становятся одним обращением.
-- После Send следующая запись доступна, пока предыдущее обращение обрабатывается. Очередь сохраняет порядок по адресату. Уточнение во время первого создания New следует за этим запросом создания и после подтверждения идёт в тот же реальный тред. Неизвестное принятие создания блокирует зависимую отправку без потери аудио; явный повторный выбор New означает отдельный новый контекст.
-- Полный исходный ответ и воспроизведение доступны по запросу; autoplay выключен. Смешанная русско-английская диктовка и русский ответ поддерживаются.
-- Вопрос — сообщение и системные многострочные кнопки вариантов. Single choice сохраняет десятисекундное отменяемое намерение; первый тап не разрешает обязательный multi-select.
-- Этот релиз объединяет Glance UI, рабочее воспроизведение оригинальных записей, выделенный и измеренный быстрый тракт транскрипции. Прежние требования надёжности ниже сохраняются.
-- Краткая адаптация текста — отдельный слой: сначала достоверные текущие данные, полный оригинал доступен. Дешёвая модель допустима лишь при реально подключённом сервисе, с кешем по ревизии и запросами при открытом приложении. Нельзя выдавать обрезку текста за готовый LLM gateway.
-- Push, полноценные голосовые summaries, более широкие типы вопросов и standalone LTE reliability остаются отдельными критериями общего продукта, если не подтверждены в этом релизе. Не объявлять их выполненными по факту установки UI.
-- Вне scope: редактор кода, терминал, управление файлами/плагинами, создание проектов, удаление тредов, постоянное прослушивание.
+## 7. Failure, storage and recovery
 
-## 3. Визуальная система
+- No arbitrary duration limit. Chunked originals support long speech and crashes;
+  finite storage/network limits are explained honestly. Low space stops capture
+  safely with a useful message and keeps all already finalized parts.
+- A four-minute bilingual recording must remain complete and ordered. Interruptions
+  cannot silently omit a middle segment or submit a partial transcript as complete.
+- Partial upload, lost receipt, URLSession task loss, OS termination, process death,
+  restart, pairing revocation and plugin reload have explicit recovery states.
+  The OS may not resume a user-force-quit app without relaunch; the app must not
+  pretend it can reliably detect why it cold-started. Every cold start reconciles
+  task and server receipts before recreating any upload.
+- The watch retains originals until a verifiable durable plugin receipt; a later
+  automatic cleanup requires a documented retention policy, never mere HTTP 200.
+  First release defaults to explicit local deletion, outside the primary flow.
+- Delete is separate from Close. An unsent draft can be deleted after explicit
+  confirmation. Enqueued audio is retained until receipt or a confirmed durable
+  abandon; no acknowledged parts does not prove that no data was received.
+  A received local copy can be deleted with an explicit non-retraction label;
+  deleting desktop audio or a dispatched prompt is a separate BB action.
+  Uncertain acceptance cannot be presented as safely canceled or unsent.
+- Audio retention/deletion never removes the deduplication fact or permits an
+  old signed/in-flight operation to become a fresh processing job. Receipt and
+  abandonment tombstones outlive the audio according to a documented policy.
+- ASR failures retain desktop audio and completed results. Retry occurs on the
+  computer and does not re-upload or create an extra agent turn. Corrupt/truncated
+  audio is rejected before a success receipt; compatible complete chunks remain.
+- Re-pair/account switch freezes old-account work and explains it. No cross-account
+  migration/rebinding of queued audio, credentials or cached thread choices.
+- Server size/codec/concurrency/retention limits and storage-full behavior are
+  documented and enforced without turning a technical per-file limit into an
+  arbitrary maximum recording duration. No hidden public audio URLs.
 
-Чёрный фон, системный белый текст, лаймовый акцент `#D5FF00`, красная запись. Без больших WORKING/DONE, фонового логотипа и декоративного свечения. Текст содержимого компактнее старой сцены: обычно 4–5 строк краткого смысла, читаемых с руки; Dynamic Type и полный текст по запросу сохраняются.
+## 8. Pairing, privacy and identity
 
-Системные List, Button, Toolbar, ScrollView, sheets, SF Symbols. Все hit targets минимум 44×44 pt. Статусы различимы формой/иконкой и VoiceOver, не только цветом. Увеличенный текст прокручивается, не обрезает ответы. Reduce Motion убирает перемещения и пульсации; Reduce Transparency сохраняет контраст. Никаких фальшивых часов/системных индикаторов.
+Pairing belongs to the plugin: the computer presents a short one-time code;
+exchange returns a revocable per-watch credential limited to this interface,
+plus verified instance and intake-host identity. The exact remote admission/auth
+protocol must pass the architecture's proof gate. Do not assume a core mobile
+session or plugin-wide master token provides the required per-watch scope. Keys
+remain in Keychain and supported private BB/plugin storage.
+No raw credential files, ASR keys or full workspace tokens in the watch UI/logs.
 
-При смене статуса меняются и glyph, и текст рабочего блока: короткий спокойный crossfade/vertical transition без прыжков layout, без побуквенной печати. Повторный poll с тем же содержимым не запускает анимацию. Быстрые реальные стадии не удерживаются искусственно; анимация не задерживает данные или кнопки.
+Pairing identifies the actual BB instance/account and intake host, not just a
+friendly label. Upload/status calls enforce device authorization and target
+ownership. Audio, transcripts, user titles and sensitive URLs are excluded from
+diagnostic logs and public build artifacts. The desktop plugin names the configured voice service and clearly explains
+hosted ASR when selected: orchestration on the computer does not imply local
+inference or prevent audio from reaching that configured service. Raw voice is not an instruction to
+change routing, credentials, approval policy or the processing pipeline.
 
-Основание: [watchOS HIG](https://developer.apple.com/design/human-interface-guidelines/designing-for-watchos), [Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons), [Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets), [Digital Crown](https://developer.apple.com/design/human-interface-guidelines/digital-crown). Системный sheet на часах полноэкранный.
+## 9. Measurable acceptance for the first complete release
 
-## 4. Навигация
-
-Тред → тап общего header или свайп справа налево → Выбор треда → выбор строки → тот же Тред. Тап New → пустое состояние того же Треда. Crown и вертикальный скролл открывают историю обращений под рабочим блоком. Нет трёх постоянных tabs, отдельной Scene или страницы Send.
-
-Header на главном экране объединяет glyph статуса, одну строку названия, elapsed работы/возраст последнего ответа и шеврон вправо. Словесного статуса в header нет. Время выводится только из достоверных timestamps; неизвестная длительность не выдумывается. При записи header показывает адресата unsent draft. Выбор не теряет запись; после начала Send адресат конкретного обращения неизменен. Пока идёт запись, выбор меняет только её адресата; наблюдаемый тред остаётся прежним. При явном Send наблюдение переходит к выбранному существующему адресату. Для New до ответа create виден локальный creating/sending context, после подтверждения — реальный возвращённый thread ID. Dismiss/cancel picker ничего не меняет.
-
-В sheets Threads, Project, Model, Recordings общего thread-header нет. Верхняя кнопка микрофона возвращает к текущему recorder, сохраняя paused/recording state; сама навигация не начинает и не возобновляет захват. Нормальный dismiss также сохраняет состояние. При активной записи индикатор захвата остаётся различим.
-
-Settings/Connect и полный текст доступны как вторичные системные destinations. Доступ к ним не должен зависеть только от неизвестного жеста. Deep link записи не дублирует текущую запись.
-
-## 5. Подключение
-
-Один код BB, Keychain для credentials. Запись доступна до подключения; подключение само не отправляет drafts. При смене аккаунта очередь привязана к прежней identity и не уходит новому аккаунту. Нет сети — кеш с понятной давностью и сохранённые записи; неизвестное состояние агента не подменяется Ready.
-
-## 6. Состояния композиции «Тред»
-
-### Текущий тред
-
-Header + краткое содержание задачи/текущей активности либо последнего сообщения + нижний микрофон. Слова статуса не занимают экран. Работа, сообщение, вопрос, результат и ошибка заменяют содержимое того же блока. Тап по содержимому открывает полный ответ/детали, включая прослушивание.
-
-### New
-
-Header `New` без выдуманных elapsed/status, Project и Model, микрофон. Проект по последнему выбору, модель по реальной настройке проекта. Список моделей загружается из фактических возможностей BB; нельзя отображать фиктивный выбор, который сервер проигнорирует. Недоступный каталог показывает понятный default/failure.
-
-### Запись и пауза
-
-Тот же header адресата, красная waveform, центральный круг: красные `Ⅱ` при захвате, простой красный `●` при паузе для продолжения. Треугольник означает только playback. Никаких больших таймеров или Resume. На паузе слева небольшой X закрывает несданную запись с сохранением локального оригинала; удаление — отдельное явное действие. Стрелка вверх в лаймовой капсуле — явный Send. Ручного Save нет.
-
-При interruption запись надёжно checkpoint/pause; не возобновлять микрофон незаметно. До реального старта сессии не изображать захват. Захват и playback не владеют аудиосессией одновременно.
-
-### История обращений
-
-Ниже виден край следующей секции. Скролл/Crown открывает записи: короткая тема, точный destination, подтверждённый stage/status. Это история обращений к BB, а не просто даты и длительности. Тап открывает сохранённое аудио, текст и доступные безопасные действия. Прослушивание воспроизводит все оригинальные части в порядке, pause/resume не начинает сначала; ошибка не удаляет оригинал.
-
-### Цикл обращения
-
-`recording → paused ↔ recording → saved/queued → transcribing → sending transcript → sent/delivered → agent activity → question/message → done`.
-
-Это разрешённые состояния, не обязательная выдуманная линейка. Не каждый endpoint различает sent/delivered; отображаем только подтверждённые факты. Ошибка любой стадии сохраняет данные; failure recovery возвращает к правильному этапу. Unknown acceptance блокирует слепой повтор mutation. Отмена single-choice намерения и смена вопроса корректно возвращают прежний контекст.
-
-### Приёмка нового интерфейса
-
-| ID | Наблюдаемый результат |
+| ID | Observable acceptance |
 |---|---|
-| G01 | Открытие показывает выбранный тред, задачу и mic; нет giant status/трёх tabs |
-| G02 | Тап header и свайп влево открывают один список; выбор/New возвращает в ту же композицию |
-| G03 | Смена адресата, открытие/закрытие picker и mic shortcut сохраняют capture state и local audio |
-| G04 | New позволяет выбрать реальный проект/модель; до Send серверный тред не создаётся |
-| G05 | Запись → pause → resume → send работает; нет Save/Record/Send/Resume текста на icon actions |
-| G06 | Обработка предыдущего обращения не блокирует новую запись; история содержит destination и stage |
-| G07 | Все lifecycle/failure/offline/unknown/question transitions отображаются в одном блоке и восстанавливаются после relaunch |
-| G08 | Смена текста и glyph плавная; одинаковый poll не анимируется; Reduce Motion без движения; долгий текст доступен |
-| G09 | Оригинальная multi-chunk запись слышна целиком, pause/resume корректен, возвращение к записи не конфликтует с playback |
-| G10 | ASR вынесен в модуль; до/после измерены сборка, encoding, upload/ASR и total на одинаковом fixture; нет заявлений о незамеренной network latency |
-| G13 | Вторая запись до ответа create не создаёт дубликат треда; зависимость переживает relaunch/unknown acceptance; подтверждение не перетягивает наблюдение с другого выбранного треда |
-| G12 | Выбор адресата меняет только unsent draft; dismiss ничего не меняет; Send переводит наблюдение на выбранный тред либо создаваемый локальный context до реального ID |
-| G11 | Ни один transient UI state не удаляет оригинал, не меняет отправленного адресата и не дублирует BB mutation |
+| V01 | After system microphone consent, a user starts recording in one tap without choosing a thread, model or connection; denied/unavailable microphone has a truthful recovery state. |
+| V02 | Pause/resume creates one coherent ordered recording; explicit Send during either state retains all finalized parts. |
+| V03 | Every single-level picker X dismisses without target/audio mutation; selecting commits one value; native Back on pushed pages returns to the actual invoker. Search or replay cannot steal the recording mic without an explicit pause. |
+| V04 | No watch process/transport request performs ASR or calls an ASR provider. With provider unavailable, audio still obtains a BB durable receipt. |
+| V05 | On real Ultra 2, explicit Send then wrist-down completes delivery when the OS/network permits; status reconciles after reopening without another Send. Record actual timing and OS deferral. |
+| V06 | Interrupted upload and lost receipt recover under the same recording ID; one audio intake/job exists and originals stay intact until receipt. |
+| V07 | Four-minute Russian/English audio is durably received complete, transcribed on the computer in correct segment order, and becomes one BB message; reported duration/frame count detect omissions. |
+| V08 | Computer asleep/offline shows queued local audio; making BB reachable resumes under the same operation ID. No nearby iPhone is needed. |
+| V09 | Two sends to one target stay in Send order; a slow/failed target does not block a different target. |
+| V10 | Follow-ups to pending New resolve to one real thread; explicit independent New creates a separate context. Wrong-account or unauthorized targets never receive audio. |
+| V11 | Plugin restart recovers originals, completed ASR groups and receipts; ambiguous send/spawn never automatically duplicates a message. Deletion/retention cannot erase deduplication or abandonment fences. |
+| V12 | Recorder is ready for another draft after enqueue; an explicit secondary action also parks an unsent draft without Send/delete. Restoring a draft is deliberate; receipts cannot alter its target. |
+| V13 | Largest supported Dynamic Type is usable by Crown scrolling; primary controls are reachable; VoiceOver, Reduce Motion and dimmed display match actual state. |
+| V14 | Every picker has visible Close and no Back; each pushed page has native Back. Primary recorder controls fit the default viewport, without a decorative phone frame, dead regions or hidden-only actions. |
+| V15 | Revocation and account switch do not leak/rebind old queued recordings; neither diagnostics nor distributed artifacts contain private audio/transcripts/credentials. |
+| V16 | A fresh source checkout builds both plugin and watch; deterministic lifecycle/failure checks and actual-device transfer evidence distinguish implementation from completion claims. |
 
-## 7. Надёжная запись и доставка
+Before setting performance targets, measure enqueue responsiveness, uploaded
+bytes, foreground/background receipt latency, desktop ASR and core acknowledgement
+separately. Release evidence includes four-minute real-network wrist-down cases;
+a simulator upload or tiny foreground recording is not equivalent acceptance.
+No spinner-only success claim and no general latency promise from two samples.
 
-### Инварианты
+## 10. Approval and clean implementation boundary
 
-1. Никакие ошибки сети, транскрипции, авторизации или UI не удаляют оригинал неотправленной записи.
-2. Один идентификатор записи соответствует одному пользовательскому сообщению; повторы передачи/commit не запускают агента второй раз.
-3. Агент не получает частичные чанки в качестве самостоятельных команд. Отправляется полный согласованный текст после явного «Отправить».
-4. Длительность не ограничена таймером приложения. Данные обрабатываются потоково, не накапливаются целиком в RAM.
-5. Повторное открытие восстанавливает локальные черновики, очередь, адресатов, состояние отмены и подтверждения сервера.
-6. «Принято BB» возможно только после подтверждённого серверного результата с идентификатором сообщения.
+Current stage: spec/design/architecture review only. Fable must critique product
+scope, every navigation path, watchOS HIG, accessibility, background feasibility,
+plugin/API assumptions, failure recovery and the implementation plan. The lead
+must verify claims against actual SDK/types and resolve review findings.
 
-### Части, фиксация и восстановление
+Only after the package is agreed should an isolated rewrite worktree be prepared
+and Astra started with the new approved documents, verified public contracts and
+owned assets. Preserve the current released checkout, app data, signed artifact
+and source history. Remove legacy implementation only inside that rewrite
+worktree. Do not pass old source, incident transcripts, old prompts or legacy
+designs to Astra as reference. A neutral migration requirement for existing
+recordings is a product contract, not permission to silently delete user data.
 
-Начальное проектное значение длины транспортного чанка — 30 секунд; это внутренняя настройка, изменяемая по замерам. Локальная долговечность не должна зависеть от окончания всех 30 секунд: короткие контрольные фиксации/восстанавливаемый контейнер нужны для целевого окна потери не более 2 секунд при аварии процесса. Все уже подтверждённые локальные части должны восстановиться полностью. Это критерий прототипирования на устройстве, не неподтверждённая гарантия iOS API.
-
-При обычном уходе в фон запись продолжается через разрешённую аудиосессию. Системное прерывание, снятие часов, потеря источника звука и невозможность продолжения приводят к сохранению и явной паузе. После прерывания тот же рабочий блок честно показывает паузу и сохранность. Действия — красный круг продолжения, стрелка явной отправки и сохранение при выходе; отдельной страницы и видимых Resume/Send/Save нет. Автозапуск микрофона после перезагрузки запрещён. [Background sessions](https://developer.apple.com/documentation/watchkit/enabling-background-sessions).
-
-При почти заполненной памяти приложение предупреждает, не останавливая доступную запись. При достижении безопасного резерва завершает и фиксирует запись до ошибки диска; показывает длительность сохранённого. Резерв определяется измеренным объёмом финализации и фиксируется до релиза. Очистка доставленного кеша допустима, черновиков — нет. При заполнении хранилища новая запись не изображает успешный старт.
-
-Чанк имеет запись, порядковый номер, диапазон времени и контроль целостности. На стороне обработки объединение сохраняет порядок и фразы на границах; пропущенный чанк не выдаётся за успешную полную транскрипцию. Нераспознанный участок помечается с временем и доступен для прослушивания/повтора. Если распознана только часть, полный commit блокируется до решения пользователя; отправка частичного текста возможна только явно, с обозначением пропуска.
-
-### Очередь
-
-Фиксируются отдельно: аудио принято сервисом, транскрипт готов, сообщение принято BB. После тайм-аута сначала запрашивается результат операции, затем при необходимости повторяется тот же idempotency key. Сбой между созданием нового треда и отправкой не создаёт новый тред при retry.
-
-Доставка возобновляется при доступном выполнении и сети. Фоновая отправка зависит от планировщика watchOS; обещания «ровно через N секунд даже при закрытом приложении» нет. Пользователь видит ожидание и может открыть приложение для продолжения. Для HTTP используется поддерживаемая модель фоновых запросов; постоянный WebSocket не является обязательным условием. [Background requests](https://developer.apple.com/documentation/watchos-apps/making-background-requests), [TN3135](https://developer.apple.com/documentation/technotes/tn3135-low-level-networking-on-watchos).
-
-В одном треде обычные сообщения доставляются в порядке нажатий «Отправить». Ошибка первой записи не пропускает молча вторую вперёд: доступны «Повторить» или «Отложить первую и отправить следующую». Другие треды не блокируются. Закрытый interaction сверяется независимо от очереди обычных сообщений.
-
-Не предполагаем наличие локального распознавания русского на Ultra 2. Базовый путь — локальное аудио и последующая транскрипция доступным сервисом. Локальный вариант допускается после проверки языка, скорости, качества и расхода батареи; отсутствие модели не блокирует запись. Облачная обработка раскрывается в настройках до первой отправки.
-
-## 8. Needs You: вопросы и ответы
-
-### S08. Список «Ждут ответа»
-
-Строка содержит проект, тред, начало вопроса и время. Один открытый interaction — одна запись списка; несколько вопросов внутри него не дублируются. Самые старые нерешённые сверху. Ожидающая отмены/доставки запись помечается «Ответ отправляется» и открывает квитанцию. При отсутствии вопросов — спокойное «Пока всё решено».
-
-### S09. Обычный вопрос
-
-Порядок строго последовательный: контекст → полное сообщение агента → вертикальные варианты → **«Записать голосом»**. Без дополнительных диаграмм, цветных карточек решений или отдельного блока выбора.
-
-Текст действия берётся из оригинального варианта. Если есть описание — оно также видно внутри кнопки вторичным текстом. Нельзя автоматически укоротить «Не публиковать до проверки» до «Публиковать». Прокручиваются и вопрос, и список; варианты на 1, 3, 8 строк и более остаются читаемыми. Кнопка не получает чекбокс, постоянное зелёное выделение или состояние selected: происходит обычное системное нажатие и переход.
-
-После тапа создаётся сохраняемое намерение ответа и открывается S10. Повторный тап, уведомление или повторная доставка события не создают второй ответ.
-
-### S10. Ответ отправляется и 10 секунд отмены
-
-Экран: «Ответ отправляется», сразу **«Отменить · 10 с»**, затем выбранный текст и вторичный переход «К вопросам». Отмена находится в видимой верхней области, до длинного содержимого; для неё резервируется место системной компоновкой, текст прокручивается отдельно. Она доступна без прокрутки даже для ответа в 20 строк и при максимальном Dynamic Type. Счётчик не находится поверх сообщения и не закрывает другие кнопки. Фокус VoiceOver остаётся на действии; ежесекундные обновления не зачитываются навязчиво.
-
-Тап — сразу начало автоматической отправки. Но необратимое принятие решения агентом задерживается на 10 секунд. Это наше продуктовое поведение, не системный паттерн Undo, автоматически предоставляемый watchOS.
-
-- До deadline отмена возвращает вопрос без ответа; агент не продолжает работу.
-- Deadline хранится устойчиво. Закрытие экрана не отменяет и не обнуляет окно.
-- После deadline и при доступной сети выполняется commit. В фоне возможна задержка ОС; нельзя показывать успешную отправку раньше подтверждения.
-- В отсутствие сети после 10 секунд надпись меняется на «Ждёт связи» и кнопка «Отменить отправку» остаётся доступной, пока commit ещё не начался.
-- При commit кнопка недоступна и текст «Проверяем отправку»; если исход неизвестен, сначала сверяем сервер.
-- После принятия: «Ответ принят». Доступны «Открыть тред» и «Записать дополнение». Поздняя коррекция — новое сообщение, не отзыв уже выполненной работы.
-- Чтобы заменить ожидающий ответ голосом: сначала «Отменить», затем «Записать голосом». Так сохраняется простой интерфейс без скрытой гонки двух решений.
-
-Если требуется отмена с другого устройства или возможность отменять уже переданное серверу намерение, backend должен поддерживать атомарный отложенный commit/cancel. Для первой версии намерение держится локально до deadline; отсюда допустима более поздняя отправка при приостановке приложения. Часы не обещают отмену сетевого запроса, уже пересёкшего границу commit.
-
-### Голосовой ответ
-
-«Записать голосом» начинает обычную запись, привязанную к `interactionId`, версии вопроса и треду. Выбирать вариант предварительно не нужно. На экране видно «Ответ на вопрос» и контекст. Отправка проходит через ту же надёжную очередь. При отсутствии сети вопрос не считается решённым до принятия.
-
-Распознанный голос — свободный ответ/комментарий. Приложение не превращает слова в разрешение на чувствительное действие и не выбирает скрыто «Да». Если interaction допускает только строгий вариант, голос доставляется как уточнение в тред, вопрос остаётся открытым; UI заранее сообщает «Голосом можно уточнить. Для решения выберите вариант». Для approval/permission gates используются только предусмотренные BB варианты и их исходная семантика, без обхода подтверждений BB.
-
-### Настоящий множественный выбор и несколько обязательных вопросов
-
-Это исключение из однотапного действия, а не изменение обычного экрана. Если schema BB требует несколько значений, одиночный тап не является готовым ответом.
-
-- Заголовок «Можно выбрать несколько». Системный multi-selection с явными отметками; здесь отметка означает реальный выбор данных.
-- Кнопка «Ответить · N» запускает единую отправку и тот же 10-секундный экран отмены.
-- Для нескольких обязательных вопросов показываем один за другим, «Вопрос 1 из 3»; переход сохраняет составляемый ответ. Последнее действие «Ответить» отправляет пакет целиком.
-- Необязательные вопросы можно пропустить. Серверные ограничения количества/обязательности сохраняются.
-- «Записать голосом» всегда доступно. Свободный комментарий не закрывает автоматически незаполненные обязательные поля; его текст добавляется к пакету через «Добавить к ответу», затем весь пакет отправляется через «Ответить». Если API не поддерживает комментарий в пакете, перед записью явно указан отдельный режим «Уточнение», а кнопка записи — «Отправить уточнение»; это обычное сообщение, которое не решает пакет вопросов.
-- Неизвестный тип interaction показывает исходный текст и «Открыть в BB», без выдуманных действий. Запись уточнения доступна в связанном треде.
-
-### Конкуренция устройств
-
-Перед commit проверяется актуальная версия interaction, а окончательное принятие атомарно на сервере. Если с телефона/десктопа уже ответили: «Уже решено на другом устройстве». Локальная отменяемая операция снимается. Голосовой черновик сохраняется; «Отправить как дополнение» требует отдельного действия и создаёт обычное сообщение. Если вопрос изменился, показывается новая версия, прежний ответ автоматически не применяется. Ответ на один вопрос не помечает решённым весь тред.
-
-## 9. Уведомления, рация и системные поверхности
-
-Два полезных типа: «Агент ответил» и «Нужно решение». Уведомление содержит тред и краткий текст с учётом системной приватности. Тап открывает точный ответ/вопрос. Длинные и неоднозначные варианты не ужимаются в push-actions: решение принимается на экране вопроса. Повторные события одного сообщения не создают повторных уведомлений.
-
-Если пользователь уже смотрит этот тред, новое сообщение появляется внутри приложения без дублирующего сигнала. Отказ в push-разрешении не мешает обновлению при открытии. Разрыв потока событий восстанавливается с позиции последнего подтверждённого события; список пересверяется при возвращении.
-
-«Рация»: записать → отправить → получить уведомление → послушать кратко → записать ответ. Микрофон не включается после окончания воспроизведения сам. Громкость и маршрут звука подчиняются системным средствам.
-
-Complication/Smart Stack дают быстрый вход в запись и счётчик нерешённых вопросов, если данные свежие. Они не обещают мгновенное обновление и не выводят чувствительный текст по умолчанию. При заблокированных часах пользователь проходит системную разблокировку; приватный микрофон не стартует обходным путём.
-
-## 10. Настройки, хранение и приватность
-
-Настройки: подключённый аккаунт/хост, уведомления, голос/скорость воспроизведения, срок хранения доставленного аудио, объём локальных данных, отключение аккаунта. Модель доступна только при настройке New; параметры чанков и технические идентификаторы не входят в основной пользовательский поток.
-
-Токены хранятся системно защищённо. Передача только по защищённому каналу. Аудио и транскрипты не попадают в диагностические логи по умолчанию. На Always On/заблокированном экране скрывается содержание сообщений и названия по системной настройке приватности; статус записи остаётся понятным.
-
-Неотправленное аудио не вытесняется кешем ответов. Удаление черновика требует подтверждения; удаление локальной доставленной копии не удаляет сообщение из BB. Первая версия не обещает бессрочного хранения исходного аудио на сервере — это отдельно раскрывается в настройках используемого сервиса.
-
-При выходе из аккаунта отправка останавливается; локальные записи сохраняются защищённо с прежней привязкой. Новый аккаунт не видит их содержимое и не получает их очередь автоматически. Пользователь может вернуться в прежний аккаунт или явно удалить данные. При отзыве доступа очереди показывают причину, а не повторяют бесконечно неуспешные запросы.
-
-## 11. Контракты интеграции BB
-
-Это требования к результату интеграции, не утверждение, что всё уже есть в текущем API.
-
-| Объект | Обязательные данные и поведение |
-|---|---|
-| Recording | Стабильный ID, account/host, длительность, упорядоченные части, локальные подтверждения, версия транскрипта, адресат, намерение отправки |
-| Destination | projectId и threadId либо intent создания; привязка не зависит от позиции строки в UI |
-| Submission | Idempotency key, подтверждение полной записи/текста, возвращаемые threadId/messageId, запрос статуса после тайм-аута |
-| Interaction | ID, revision, тип, полный текст, option IDs/labels/descriptions, cardinality, обязательность, статус и атомарное разрешение |
-| Answer intent | Interaction revision, payload, createdAt/deadline, состояние отмены, idempotency key; один победивший ответ |
-| Agent message | ID/версия, оригинал, краткий текст с привязкой к версии, состояние генерации голоса, время, ссылки/артефакты |
-| Events | Устойчивый курсор, replay пропущенных событий, дедупликация, пересверка после разрыва |
-
-Needs You используется как источник внимания; каноническое разрешение вопроса — через BB interactions, а не «dismiss» записи плагина. Закрытие элемента inbox не считается ответом агенту. В раннем исследовании это различие подтверждено в установленном плагине и SDK; перед реализацией проверяется текущая версия.
-
-Источники существующего устройства BB: [mobile README](https://github.com/get-bb/bb/blob/main/apps/mobile/README.md), [thread SDK](https://github.com/get-bb/bb/blob/main/packages/sdk/src/areas/threads.ts), [voice transcription](https://github.com/get-bb/bb/blob/main/apps/server/src/services/ai/voice-transcription.ts). Эти ссылки относятся к ранее выполненному исследованию; endpoint, лимиты и возможности не считаются замороженными контрактами.
-
-Критичные проверки перед первым интеграционным вертикальным срезом: watch-only auth, удалённая доступность выбранного BB-хоста, серверная идемпотентность создания/отправки, atomic interaction resolution, доступный способ транскрипции и TTS. Если capability отсутствует, нужен совместимый серверный слой; UI не должен компенсировать его отсутствием гарантий.
-
-## 12. Матрица приёмки
-
-Все критерии ниже относятся к нативному приложению, не к HTML. Проверка сети/фона обязательна на реальных Ultra 2 с отключённым iPhone; симулятор не доказывает автономную работоспособность.
-
-| ID | Дано / действие | Наблюдаемый результат |
-|---|---|---|
-| A01 | Чистый запуск без iPhone; запись до входа → login | Полный цикл доступен самостоятельно; анонимный черновик привязывается при явной отправке, сам login ничего не отправляет |
-| A02 | Главная → Записать | Микрофон реально включён, waveform реагирует; нет обязательного названия/проекта и большого таймера |
-| A03 | Пауза → Продолжить → Отправить | Одна запись, без пауз в аудио, доступна явная кнопка отправки |
-| A04 | Свободная запись → существующий тред | Выбор строки назначает адресата; явная стрелка отправляет ровно в выбранный тред |
-| A05 | Свободная запись → новый → проект; ответ сервера потерян | Создаётся ровно один тред и одно сообщение, без запроса названия |
-| A06 | Запись из треда/вопроса | Видна привязка, отправка не требует повторного выбора |
-| A07 | 60 минут непрерывной записи, паузы и переходы | Нет продуктового лимита, порядок и стыки аудио сохранены; RAM не растёт пропорционально длительности |
-| A08 | Потеря сети на записи/передаче/обработке | Данные сохранены; после восстановления завершается та же отправка |
-| A09 | Force-quit/перезапуск на разных фазах | Все подтверждённые части и очередь восстановлены; аварийное окно потери ≤2 с либо релиз заблокирован до устранения/явного пересмотра требования |
-| A10 | Звонок/смена аудиомаршрута/прерывание | Нет ложного индикатора захвата; запись сохранена с понятной паузой, продолжение требует явного действия |
-| A11 | Мало места, затем исчерпание резерва | Сохранён накопленный материал; новая запись не стартует ложно; черновики не удалены |
-| A12 | Неудачная транскрипция одного чанка | Оригинал доступен; виден проблемный участок; агент не получает незаметно неполный бриф |
-| A13 | Двойной тап и тайм-аут commit | Нет дублирующей mutation: локальный single-flight, unknown acceptance без слепого replay; reconciliation/idempotency используются только при подтверждённом серверном контракте |
-| A14 | Два сообщения одному треду; первое ошиблось | Порядок сохранён либо изменён только явно пользователем |
-| A15 | Приходит ответ; генерация/загрузка звука задержана, затем ошибка; повтор offline | Текст можно читать; доступны причина и повтор; незагруженный звук не изображает бесконечную подготовку; кешированный играет offline |
-| A16 | Кратко → полностью → назад | Оригинал доступен, голос соответствует выбранной версии, позиции сохраняются |
-| A17 | Воспроизведение и отключение наушников | Пауза; приватный ответ не звучит неожиданно из динамика |
-| A18 | Варианты по 1, 3, 8 и 20 строк | Полный текст доступен, области касания не перекрыты, обычный вариант не выглядит checkbox |
-| A19 | Тап single-choice с текстом 20 строк и max Dynamic Type → отмена на 9-й секунде | Отмена сразу доступна без прокрутки; агент не получает ответ; исходный вопрос восстановлен |
-| A20 | Тап → закрыть приложение → вернуться | Deadline не сброшен; намерение сохранено; отправка только после окна, без дубля |
-| A21 | Тап offline → 10 секунд → отменить | Ответ не отправлен; восстановление сети позже не оживляет отменённое намерение |
-| A22 | Ответ на другом устройстве до нашего commit | Один победивший ответ; наши данные сохранены; нет повторного разрешения |
-| A23 | Голос без предварительного выбора | Запись отвечает на нужный вопрос либо явно доставляется уточнением при строгой schema |
-| A24 | Настоящий multi-select / группа вопросов | Payload соответствует schema; первый тап не завершает пакет |
-| A25 | Вопрос изменился во время диктовки | Запись сохранена, старая версия не применяется автоматически |
-| A26 | Несколько входящих событий и перезапуск | Нет дублей сообщений/уведомлений; пропущенные сообщения восстановлены |
-| A27 | Истёк токен/сменился аккаунт | Нет отправки чужому аккаунту, запись не пропала |
-| A28 | Dynamic Type max, VoiceOver, Reduce Motion/Transparency | Все сценарии доступны, подписи и отмена читаемы, нет зависимости только от цвета |
-| A29 | iPhone выключен, реальные LTE и Wi-Fi по отдельности | Запись → доставка → текст+голос → ответ на вопрос работают |
-| A30 | Агент занят или остановлен | «Принято BB» не подменяется утверждением «Агент работает»; показано действительное состояние |
-
-### Измеримые цели качества
-
-- На Ultra 2 после уже выданного разрешения микрофон начинает захват за ≤1 секунду после тапа в 95% из 30 запусков в foreground. Интерфейс не обещает запись раньше старта аудиосессии.
-- Реакция на тап/переход — ≤200 мс в 95% из 30 локальных взаимодействий; сеть не блокирует кнопку или сохранение.
-- Сценарий «ответить в открытом треде» — два смысловых действия: начать запись, отправить. Главная свободная запись добавляет выбор адресата, новый тред — выбор проекта.
-- Ноль потерянных подтверждённых частей и ноль двойных сообщений в матрице аварий, повторов и сетевых разрывов.
-- На часовом прогоне, включая аварийное выключение питания и восстановление после разряда, фиксируются расход батареи, рост RAM, объём хранения и температура. Бюджет энергопотребления назначается по первому аппаратному замеру; выдуманный процент экономии не является критерием.
-- Внешняя задержка BB/сети не маскируется искусственным прогрессом. Для каждого ожидания видны стадия и сохранность данных.
-
-## 13. Порядок реализации и готовность
-
-Это последовательность законченных пользовательских срезов, а не отдельный backend/frontend backlog:
-
-1. **Надёжный диктофон → существующий тред.** Нативный экран, реальное аудио, локальное восстановление, независимый auth, идемпотентная доставка. Проверка A01–A04, A06–A14, A27, A29 до усложнения UI.
-2. **Полный разговор на часах.** Новый тред через проект, история, краткий/полный текст и голос, уведомления и возврат в контекст. Проверка A05, A15–A17, A26, A30.
-3. **Needs You.** Реальная schema, быстрые действия, 10 секунд отмены, голос, множественные вопросы, гонки устройств. Проверка A18–A25.
-4. **Системная отделка и релизная проверка.** Доступность, системные материалы, complication, приватность, реальная LTE и долговечность данных. Проверка A28, всей матрицы и целей качества.
-
-Каждый срез демонстрируется на часах. Визуальная готовность означает настоящие системные контролы, корректную типографику и состояние в текущей watchOS, а не сходство скриншота с рамкой HTML.
-
-### Что остаётся подтвердить технически
-
-| Вопрос | Как закрыть | Влияет на |
-|---|---|---|
-| Фактическая ОС Ultra 2 и стабильная toolchain | Проверка устройства/Xcode перед первым билдом | Availability и внешний вид |
-| Самостоятельная авторизация часов в BB | Проверка auth и один полный login на часах | Первый запуск |
-| Idempotency и атомарное решение interaction | Контракт и воспроизведение гонок через интеграцию | Отсутствие дублей и корректность Undo |
-| Восстановление последних секунд записи | Kill/restart пробы на физическом устройстве | Главное обещание сохранности |
-| Русский голос без iPhone, в том числе offline | Проверка системного синтеза; при отсутствии серверное аудио и кеш | Прослушивание |
-| Качество/стоимость длинной транскрипции | Прогон длинного русского брифа со смешанными терминами | Точность задач |
-| Remote BB-хост и фоновые события | LTE end-to-end и suspend/resume | Автономность и уведомления |
-
-Эти проверки выполняет реализация; они не требуют от пользователя заранее выбрать внутреннюю технологию. Если проверка меняет согласованное пользовательское поведение, фиксируется отдельное продуктовое решение.
+Open release gates: plugin transport/auth SDK feasibility; dispatch dedup/reconcile
+contract; runtime proof of New creation reconciliation; recording-background capability;
+measured local/desktop storage limits; tested neutral migration/recovery contract. These
+are explicit go/no-go gates in the implementation plan. A reviewed plan may
+start bounded Phase 0 proofs; full implementation cannot build around a failed
+or unresolved platform/auth/dispatch contract.

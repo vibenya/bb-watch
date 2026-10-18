@@ -1,10 +1,21 @@
 # BB Watch
 
-An independent, voice-first Apple Watch client for [BB](https://github.com/get-bb).
-Record locally, choose a chat, send to an agent, and read or listen to its reply.
+An independent Apple Watch voice interface for [BB](https://github.com/get-bb).
 This is a community project, not an official BB release.
 
-## What works
+## Proposed next product: voice delivery plugin
+
+[Specification 2.0](specs/bb-watch-product-spec.md) and [design](design.md) describe
+a proposed reset: the watch records and delivers original audio; a BB plugin on
+the computer owns durable intake, transcription and thread submission. The watch
+is an external input interface, not a miniature BB conversation client.
+The [architecture and gated plan](specs/bb-watch-architecture.md) and
+[Fable/lead review](specs/reviews/bb-watch-v2-fable-review.md) define the next steps.
+The package is reviewed for Phase 0 proofs and is **not implemented yet**;
+remote admission, ASR, capture and complete background delivery remain unproven.
+The current source/build below is version 0.2.0; keep it separate from v2 claims.
+
+## Installed 0.2.0 scope
 
 - Durable chunked recording with pause, save, recovery and explicit Send.
 - BB mobile pairing with credentials in Keychain; transcription and delivery.
@@ -13,8 +24,10 @@ This is a community project, not an official BB release.
 - Supported single-choice questions with a persisted ten-second Undo window.
 - Bounded network requests, shared authentication and private local diagnostics.
 
-A user confirmed recording and sending a message from a physical Ultra 2 after
-the latest update. This is a smoke test, not comprehensive LTE or reliability acceptance.
+Earlier device smoke tests do not establish reliable long-recording delivery.
+The current watch-side transcription path can be delayed by background suspension.
+Version 2.0 moves this work to the computer; it must pass independent wrist-down
+transfer and recovery acceptance before release.
 
 ## Build
 
@@ -50,8 +63,9 @@ See [native setup](native/README.md) for pairing and build details.
 Read [AGENTS.md](AGENTS.md), [current handoff](docs/HANDOFF.md),
 [product specification](specs/bb-watch-product-spec.md), and
 [Chats integration](specs/chats-watch-integration.md).
-The HTML prototype (`watch.html`) and original product specification are in Russian;
-the native application UI is English. The prototype is simulated, not a live client.
+The historical HTML prototype (`watch.html`) is simulated, not a live client.
+The native application UI is English. Version 1.2 requirements are archived in
+[specs/archive](specs/archive/bb-watch-product-spec-1.2.md).
 
 ## Known limits
 

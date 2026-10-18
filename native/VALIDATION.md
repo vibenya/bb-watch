@@ -1,3 +1,15 @@
+# Observed long-recording issue and v2 boundary — 2026-10-18
+
+A real multi-minute recording remained in watch-side transcription. Diagnostics
+showed slow segment requests and background/foreground transitions; bounded logs
+do not establish exactly where every timeout occurred. Current source uses an
+ephemeral session and does not provide a durable background audio intake protocol.
+A manual computer-side recovery preserved the audio, reused completed segments,
+and obtained verified acceptance in the selected thread. This recovery is not a
+successful test of a shipped v2 plugin and does not repair the current background
+implementation. The proposed v2 specification moves ASR to BB and requires real
+wrist-down file-transfer evidence before release. No source change is claimed here.
+
 # Glance release validation — 2026-10-18
 
 Version 0.2.0 (2), Xcode 27.1, watchOS 26+ target; watchOS 26.1 Ultra 2 simulator.

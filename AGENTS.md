@@ -4,7 +4,13 @@
 
 Read `docs/HANDOFF.md`, `native/README.md`, and `specs/bb-watch-product-spec.md`.
 The specification describes the intended product; it is not a completion claim.
-Use `specs/chats-watch-integration.md` for the verified BB/Chats boundary.
+Version 2.0 proposes a voice-delivery watch app plus a BB plugin that owns audio
+intake, transcription and submission. Read `design.md` and
+`specs/bb-watch-architecture.md` for that direction and its unproven Phase 0 gates.
+Do not apply the installed client's conversation/question requirements to v2.
+The product constraints, architecture and checks below describe the installed
+0.2.0 source; its contract is `specs/archive/bb-watch-product-spec-1.2.md`.
+Use `specs/chats-watch-integration.md` for the verified existing BB/Chats boundary.
 Work in the canonical project checkout on `main`. Inspect existing edits before
 changing files. Never commit credentials, recordings, user conversations, device
 identifiers, signing profiles, local logs or third-party artwork without rights.
@@ -51,7 +57,7 @@ Prefer small changes and system components; avoid unnecessary dependencies.
 
 ## Verification
 
-Run `./native/check.sh` for behavioral changes: nine core tests, HTTP contract,
+Run `./native/check.sh` for behavioral changes to the existing client: core tests, HTTP contract,
 Chats fixture, real audio checkpoint roundtrip, strict Swift 6 typecheck and both
 SDK builds. Supply locally owned artwork first (README). Add focused behavioral
 regressions for meaningful bugs, not implementation-mirroring tests.

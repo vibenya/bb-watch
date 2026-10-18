@@ -1,3 +1,15 @@
+# Next product direction — reviewed specification 2.0, runtime gates open
+
+The next product is a watch voice-delivery interface plus a BB intake plugin.
+Transcription and thread submission move to the computer. See the proposed
+[specification](../specs/bb-watch-product-spec.md), [design](../design.md),
+[gated architecture](../specs/bb-watch-architecture.md) and
+[Fable review](../specs/reviews/bb-watch-v2-fable-review.md).
+These documents do not describe completed source changes. The native 0.2.0 code
+below remains installed; its earlier contract is archived as
+[specification 1.2](../specs/archive/bb-watch-product-spec-1.2.md).
+Do not treat a signed build/install as reliable wrist-down transcription evidence.
+
 # Glance 0.2.0 (2) — 2026-10-18
 
 The approved Glance design replaces the three-page Record/Stage/Threads shell.
@@ -6,7 +18,9 @@ Project/Model context; actual creation waits for explicit Send. Recording uses
 pause/red-circle resume, autosave and an icon-only send action. Questions,
 processing, messages and results share the main block with 200ms replacements;
 Reduce Motion is immediate. History includes destination and truthful status.
-See `../design.md` and product specification 1.2 for behavior and implementation.
+See [Glance design 1.2](../specs/archive/glance-design-1.2.md) and
+[product specification 1.2](../specs/archive/bb-watch-product-spec-1.2.md)
+for that build's behavior and implementation.
 
 Local New followups persist their dependency on a creating request and resolve
 only to its confirmed same-identity thread ID. Independent New requests stay

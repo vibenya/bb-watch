@@ -1,99 +1,235 @@
-# BB Watch — Glance implementation design
+# BB Watch — voice delivery design
 
-2026-10-17. Implements product specification 1.2. This document is a build contract, not a completion report. Current sources and verified server contracts take precedence over illustrative mock text. Preserve all durable-store, identity, question and delivery invariants.
+Version 2.0 · 18 October 2026. Reviewed design for a fresh build,
+not the installed application. [Product contract](specs/bb-watch-product-spec.md).
+[Architecture and gated plan](specs/bb-watch-architecture.md).
+[Fable review](specs/reviews/bb-watch-v2-fable-review.md).
 
-## Visual references
+## 1. Design principle
 
-Local concept assets (intentionally not required for a source checkout):
+The watch answers: am I recording, where will it go, and has BB safely received
+it? The computer owns transcription, conversation and agent execution.
 
-- `output/imagegen/thread-navigation/14-main-sprite-revised.png`: main compositions.
-- `output/imagegen/thread-navigation/15-request-lifecycle.png`: temporal variants of one block.
-- `output/imagegen/thread-navigation/16-recording-controls-refined.png`: final pause/resume/history correction.
+One full-screen native recorder is the root. Respect real watchOS safe areas,
+time/system chrome, Crown scrolling, lists and toolbar controls. No inner phone
+frame, custom floating navigation bar or rounded card containing the whole app.
+Use system fonts/SF Symbols, black/white, sparse lime accent and red capture.
+The default recorder viewport contains the recipient, capture control and Send
+when applicable. Optional New fields/history follow the primary controls, rather
+than pushing them below the fold. Validate 49 mm and 45 mm default-text layouts;
+large accessibility text scrolls naturally instead of shrinking to fit.
 
-Latest correction wins: resume is a simple solid red circle; no play-plus-record glyph. Sheet toolbar mic replaces sheet X. Small paused-recorder cancel remains and preserves audio.
+The waveform is a supporting real level meter, not decorative motion. A compact
+five-bar meter may be used while genuine input is arriving; a static microphone
+is an acceptable quieter alternative. A small elapsed `m:ss` is secondary,
+never the hero. Active, paused and idle keep control anchors stable.
 
-## Ownership and integration
+## 2. One navigation model
 
-Use canonical checkout on main. Lead owns spec/design, release integration, check.sh orchestration and device install. UI session owns SwiftUI views, Theme, navigation/presentation state, UI fixtures and tests. Playback session owns AudioPlayback.swift and focused audio playback checks. Transcription session owns new transcription module, BBClient ASR transport and audio assembly/encoding. Shared AppModel/DurableStore changes require explicit coordination; UI owns presentation/draft context and transcription owner may change only the transcription call path. No worker commits unrelated edits, releases or installs. Report exact files, checks, limitations and commit boundaries to lead.
+```mermaid
+flowchart TD
+  R[Recorder root] -->|Recipient row| T[Threads: single-level sheet]
+  T -->|Pick existing or New; dismiss| R
+  T -->|X or system dismissal; no change| R
+  R -->|Project row, New only| P[Project: single-level sheet]
+  R -->|Model row, New only| M[Model: single-level sheet]
+  P -->|Pick or X; dismiss| R
+  M -->|Pick or X; dismiss| R
+  R -->|Recordings row| H[Recordings: push]
+  H -->|Row| D[Delivery detail: push]
+  D -->|Native Back| H
+  H -->|Native Back| R
+  R -->|Latest delivery| L[Delivery detail: direct push]
+  L -->|Native Back| R
+  R -->|Settings row| S[Settings: push]
+  S -->|Native Back| R
+```
 
-## Main composition and navigation
+Only one sheet can be active. **A sheet never contains another sheet or navigation
+hierarchy.** Its visible system Close symbol (X) dismisses the picker without a
+choice. Picking a row commits exactly one value and dismisses. Back is absent
+from pickers; it pops the actual invoking path on pushed history/detail/settings.
+Do not replace Close with a microphone or relabel it as a navigation shortcut.
+Add an explicit dismiss control rather than assuming SwiftUI supplies it.
 
-Replace horizontal three-tab shell with one NavigationStack/main ScrollView and system sheets. Persistent selected thread ID remains source identity, not a row offset. There are only two main compositions: Thread and Thread chooser. New is a local context in Thread. Recording is a body state. Existing connection/settings/full detail remain secondary system destinations.
+The visible recipient row opens Threads. No custom swipe-to-chooser shortcut:
+native back/dismiss/Crown interactions retain their usual roles. Dismissal does
+not start/resume capture, send, delete or change a value. Focus and scroll return
+to the invoking recorder; incoming network events never navigate the interface.
 
-A shared ThreadContextHeader is a Button with status glyph, one-line title, small relative time and `chevron.right`. Entire surface is tappable. A deliberate predominantly horizontal right-to-left swipe opens the same chooser; it must not steal vertical Crown/touch scrolling. Keep a visible header action, so gesture is supplementary. Restore scroll position on dismissal. Avoid nested active sheets/presentation races.
+## 3. Target selection and New
 
-Header semantics depend on current body: observation follows currentThreadID; an unsent capture follows draft destination. Selecting another thread while dictating updates unsent destination durably, not existing enqueued work. Once Send starts, freeze recipient and connection identity for that recording. Do not silently retarget answer context or children to family roots. While recording, changing destination does not change the observed thread. Picker dismissal without selection changes neither. Explicit Send switches observation to its existing destination; New retains a local creating/sending context until create returns the actual thread ID, then follows that ID.
+Threads is a small recent list (initially 30 visible, recently updated threads),
+with project subtitle only when needed and a `New thread` row. Exact child IDs
+are retained. A stale/offline cache is labeled with its source age when materially
+stale; it is not silently replaced with a different target. The plugin validates
+permission and availability. No model chips, agent counters or chat preview UI.
 
-Thread chooser uses shared Chats projection, family-activity order, hidden/archive filtering and pins as glyphs. New is a normal list action. Selecting New only creates local intent. Project/Model selectors are focused sheets. Their toolbar microphone dismisses back to the existing recorder without starting/resuming audio. A user on a non-recorder main state may return to its idle recorder; capture still needs an explicit mic tap. Preserve active capture while navigating and show capture affordance. A dismissed picker does not change selection.
+Choosing New commits a local New context and returns to the recorder. The last
+valid project and `Project default` reduce setup; neither requires a server
+mutation. Optional Project and Model rows live below primary controls, only in
+New. Each opens a focused one-value picker with X. No wizard, `Use target`,
+required title, extra Create button or staged multi-page transaction.
 
-## Model selection and new-thread contract
+Model choices use the real project's catalog; a project default is genuine nil
+intent, never a hidden global override. An unavailable catalog does not block
+recording or selecting a known project default. A rejected override stays visible
+as invalid until explicitly repaired; no silent fallback to a different model.
 
-Inspect installed BB server schema before extending BBClient. Fetch real provider/model choices and project defaults. Represent default explicitly; persist selected intent across capture/relaunch. Pass a verified supported model field on createThread. No hardcoded demonstrative models, private credentials or fabricated capability. Existing drafts must decode with defaults if persisted schema grows. Server rejection preserves draft and its chosen configuration. Do not create an empty server thread on choosing New or a model. A second capture in the pending New context persists a dependency on the creating request, not a fabricated thread ID. Resolve that dependency only to the acknowledged returned ID under the same connection identity. Parent failure/unknown acceptance blocks dependent dispatch; relaunch preserves it. Explicit selecting New again starts an independent context. Post-create completion must not steal focus after the user selected another thread.
+After the context's first Send, its project/model are frozen. Keep those rows
+visible as read-only values without chevrons; they do not open pickers. A short
+caption, `Choose New thread to change project or model`, explains the restriction.
+Later recordings
+in that pending context follow the same future thread. A different project/model
+requires explicitly choosing New again. A receipt resolving that context cannot
+change the target of an unrelated current compose draft.
 
-## Working block and request projection
+Send with no target pauses capture and opens Threads. New without a valid project
+opens Project instead. A choice returns to the paused recorder; another explicit
+Send is required. No selection itself sends or creates anything remotely.
 
-Build one source-backed request presentation value from durable draft state + current selected thread snapshot + freshness. Keep presentation separate from mutation state. Typical fields: stable request/source ID, phase, glyph, concise primary content, detail access, source timestamps, allowed actions, failure/reconciliation context. It must not infer delivery from a completed spinner or agent-start from HTTP request completion.
+## 4. Capture, draft restoration and search
 
-| Source | Presentation | Available action / transition |
+One live microphone and one active compose ID. Pause finalizes the current part;
+resume continues that same draft. Successful durable enqueue ends it and returns
+root ready for a new recording. The red circle means record/resume; red pause
+bars mean pause. A separate up arrow means explicit Send. No play-plus-record
+hybrid, manual Save or discard X beside the recording control.
+
+A pending audio activation is represented until the actual input callback.
+There is no success haptic or animated input before capture really starts.
+Permission denial/unavailable input has a truthful recovery caption. No assumed
+millisecond activation guarantee. A system interruption or cold-start recovery
+returns a paused draft with `Paused · interrupted` and a known cause when available;
+resuming always requires the real control. A normal pause is not an interruption.
+
+The active paused draft restores by ID after returning. Other unsent drafts can
+remain autosaved in history. A secondary **New recording** action parks the
+paused draft and opens a new empty compose state without starting the microphone.
+History **Continue** explicitly restores a selected unsent draft, parking the
+currently paused one. Neither sends/deletes. Do not require Send or Delete just
+to save a second thought while unpaired. No silent "newest draft wins" switching.
+
+A target picker may remain open during live capture with a small recording
+indicator. **Voice search cannot steal the recorder microphone.** During capture,
+use cached recent choices; entering dictation/search requires an explicit
+`Pause to search` action that first finalizes/pauses capture. Dismissal does not
+resume. The same rule applies to any search field or local replay. Replay is
+unavailable during capture; Record stops existing playback before starting input.
+
+Actual wrist-down/not-frontmost capture capability is a hardware gate; legitimate
+recording background execution must not be confused with background networking.
+If the OS interrupts capture, retain finalized parts and explain the pause.
+Cold start does not pretend to know whether the user force-quit or the OS killed
+it; reconcile durable state and require an explicit resume.
+
+## 5. Screens and their exits
+
+| Surface | Main content/actions | Exit semantics |
 |---|---|---|
-| Idle selected thread | task/activity or last message | mic, details, header |
-| New local context | Project + Model | mic, selectors |
-| Engine starting | pending capture, honest state | safe cancel; no false waveform |
-| Capturing | red waveform + red pause bars | pause, explicit up-arrow Send, context picker |
-| Paused | waveform + solid red circle; small cancel X | resume, Send, dismiss/save local |
-| Local saved/queued | locally retained, destination | capture another, inspect history |
-| Transcribing | concise stage, no percent or ETA | capture another; safe cancel only if supported |
-| Sending transcript | network stage | no mutation replay action |
-| Receipt accepted | confirmed BB receipt | capture another; await current thread |
-| Ambiguous acceptance | review/reconcile | never blind retry/send again |
-| Agent active | current task + factual activity | mic, details |
-| Question | full prompt access + native choice buttons | persisted 10-second intent + Undo, voice |
-| Message/result | concise latest message; check only for known done | mic, full text/playback |
-| ASR failure | original saved; localized concise error | retry transcription from saved parts |
-| Delivery failure | known rejection vs unknown distinguished | safe retry only if non-acceptance established |
-| Offline/stale | cached content with freshness | local capture; no fabricated Ready |
+| Root idle | target; prominent record circle; latest-delivery/Recordings; Settings below | No fake Back at root; app exit preserves drafts |
+| Root activation pending | honest pending input; no live waveform | Activation failure returns a recoverable state; no fake success |
+| Root recording | target; real input; secondary elapsed; pause; separate Send | Picker selection/dismissal does not stop/resume capture; explicit search pause is distinct |
+| Root paused | target; subdued meter; record circle to resume; Send | Secondary New recording parks this draft; no delete disguised as Close |
+| Root paused after interruption | same paused composition; `Paused · interrupted` caption | Resume/Send are explicit; saved parts are retained |
+| Root New | same recorder; optional Project/Model rows below primary controls | Focused pickers return here; no server creation from navigation |
+| Threads/Project/Model | one-value native list; X; voice-search recording guard | Pick commits one choice; X/system dismissal commits nothing |
+| Recordings list | newest requests; unsent drafts; recipient, age, truthful delivery glyph/caption | Native Back restores root; row pushes detail |
+| Delivery detail | exact recipient; durable receipt/failure; local replay; only safe repair/delete actions | Native Back pops its real invoker (history or root) |
+| Settings | connection/pairing identity, storage used, Forget pairing | Pushed page with native Back; any picker remains single-level |
 
-Several stages may be absent in a real contract. Do not artificially delay or insert them. Keep prior request visible in history while capture another is foreground. Ordering still applies per recipient. Question UI retains durable deadline/selected labels and rechecks question before commit. Do not truncate decision-critical question content.
+```text
+IDLE                      RECORDING                 PAUSED
+[Recipient           >]   [Recipient           >]   [Recipient           >]
+                              Recording                 Paused
+        ●                       ▁▂▅▃▂                    ─▂▅▃─
+      Record*                  0:24                      0:24
+                               [Ⅱ]                      [●]
+                           [↑ Send*]                 [↑ Send*]
+[Latest / Recordings  >]   [Delivery / Recordings >]  [New recording          ]
+                                                    [Latest / Recordings   >]
+[New fields if needed ]   [New fields if needed ]   [New fields if needed   ]
+```
 
-## Capture and autosave
+Asterisks are accessibility labels, not mandatory visible words. A visible label
+is allowed where an icon is insufficiently clear. Primary Record/Pause/Resume and
+Send have at least the project's 44-point target (Apple's default watchOS control
+size; see [HIG Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility))
+and a full hit region; no dead
+center Spacers. Do not expand labels into half-screen status words. Actual default
+screen screenshots, not these ASCII sketches, decide whether the composition fits.
 
-Reuse WatchRecorder/AudioWriter/DurableStore. Central circular control is 44pt+ target; active `pause.fill` in red, paused red circle. Up arrow in lime bottom capsule, accessibility label Send recording. No visible Record/Send/Resume/Save text. No prominent standalone capture timer. Header's time refers to thread activity/reply, never accidentally labels recording duration. Recording meter redraws at a bounded cadence and stops offscreen/inactive; do not run decorative perpetual animation.
+## 6. Delivery presentation and safe actions
 
-Autosave chunks during capture and checkpoint on pause/leave. Separate stopping capture from deleting audio. A paused X dismisses locally saved work; permanent delete is explicit and confirmed when appropriate. Existing recording failure recovery remains. Do not start multiple recorders from deep links or mic shortcut. A new capture stops playback before activating input. Playback cannot reconfigure the session during live capture; checkpoint/pause first under explicit UI ownership.
+The main recorder remains available while the outbox works. A compact latest
+receipt row uses `Saved`, `Queued`, `Sending`, `Received by BB` or `Needs attention`.
+Acknowledged progress can be shown in detail; transport chunk counts are not
+primary screen content. `Waiting for network/BB` needs an actual supporting
+network/server result; an OS-deferred task without an explanation says `Queued`.
+No invented percent, stage duration, ETA or timed progress animation.
 
-## History and playback
+Received means durable computer-side audio/job ownership, not completed ASR or
+an agent result. Desktop ASR/submission facts are optional detail, never a new
+watch progress modal. A failed ASR cannot revoke an upload receipt or show Send
+again. Appropriate transfer Retry reuses the same recording ID and frozen audio.
 
-History is below main content, with a small next-section peek; use normal vertical scroll and Crown, not a separate permanent tab. Focused full history sheet is acceptable for deeper navigation. No thread selector atop sheets. Toolbar mic returns to capture state. Rows contain short request topic, recipient thread and meaningful persisted/source-backed processing status; safe fallback topic when transcript absent. Do not display all requests as Delivered or derive Done merely from local send success.
+Unsent drafts: explicit Delete in detail with confirmation. Enqueued/uncertain
+intake: retain audio while querying receipt or confirming server abandon; zero
+ACKs is not proof of zero acceptance. Retarget creates a replacement operation
+only after a durable fence blocks the old one. Received local copies: explicit
+`Delete local copy` says it does not retract anything on BB. No automatic local
+cleanup in this release. Audio deletion never erases the plugin deduplication
+fact needed to reject delayed duplicate commits.
 
-Original-audio playback uses ordered CAF chunks. Handle empty/missing/corrupt parts, unsuccessful player start, decode failure, interruptions, route changes, pause/resume, stale delegate callbacks and end-of-queue. State must identify the recording being played consistently with view IDs. Errors remain visible and preserve files. Watch audio routing/session activation must support the watch speaker as allowed by current APIs and headphones; verify on real device, do not infer audibility from isPlaying alone. Full-response speech remains distinct from recorded audio.
+Haptics occur on actual start/pause/resume and a newly confirmed foreground audio
+receipt. No repeated receipt haptic on polling; a background receipt does not
+promise a haptic or notification. No notifications in this release.
 
-## Typography, layout and motion
+## 7. Motion, privacy and accessibility
 
-Black background, white text, lime #D5FF00, charcoal materials; red only for capture/destructive meaning. Use system rounded/semantic fonts, roughly 16–17pt body at default watch size, smaller secondary metadata, Dynamic Type scaling. No huge status word. Short content naturally fits about 4–5 lines; offer full text and let accessibility sizes scroll. Avoid fixed heights clipping translations/choices.
+Use short system-consistent content replacements (approximately 150–200ms),
+keyed to actual revision. Keep controls stable and identical refreshes quiet.
+No typewriter output, activity shimmer or whole-screen pulsing. Reduce Motion
+removes nonessential custom movement; system transitions remain system-owned.
 
-Motion contract:
+Always On stops the level animation and hides sensitive titles as needed; a static
+capture glyph/caption remains truthful, with infrequent timer updates. Never hide
+the fact that recording is live for the sake of privacy. Dynamic Type uses Crown
+scrolling. VoiceOver names capture/pause/resume/send/close/back and the recipient;
+focus is isolated to the sheet, and covered root controls are inaccessible.
 
-- Stable source ID plus content revision, not a new UUID per render/poll.
-- Header glyph replacement uses system symbol replacement (availability fallback opacity); retain title geometry.
-- Phase/summary/message changes use a restrained 180–250ms ease-in-out opacity transition. A 4–6pt vertical offset is optional only if it does not disturb layout. Animate complete text blocks, not characters. Reserve consistent minimum content space while allowing long text to grow.
-- Press feedback uses native Button style; modal transitions are system transitions. No nested spring chains or decorative bounce.
-- Waveform responds to actual input; paused waveform is static. Pause/resume glyph transition is short and respects real engine state.
-- New history row appears once; updates alter same row. Send may briefly acknowledge locally saved/queued, then show actual processing; capture button is immediately usable after final checkpoint.
-- Rapid source changes coalesce naturally into latest content; do not queue obsolete animations. Animation never delays persistence, Send or current status.
-- Reduce Motion: opacity-only or immediate replacement; no spatial movement/indeterminate decorative ring. Inactive/Always On: no continuous animation. Announce meaningful state once for VoiceOver, not every waveform sample or poll.
+## 8. Desktop plugin interface
 
-## Transcription module and performance
+A small plugin inbox is the operational surface, available within BB. It shows
+original audio, exact thread/pending New context, durable receipt, processing
+failure/transcript and verified core submission facts. It links to the actual
+thread. Audio is stored by the plugin; no audio-native timeline API is invented
+and no fake `audio received` prompt is sent just to draw a message.
 
-Extract assembly/encoding/upload orchestration from AppModel into a small independently checkable module. AppModel retains durable queue ownership and publishes truthful phases. Module takes immutable draft/chunk references plus request client/identity context; returns ordered transcript segments or failure. Preserve existing segment checkpointing and avoid repeated ASR of completed segments. Cleanup only temporary assembled/upload files, never original chunks.
+Retry ASR reuses audio and completed groups. Ambiguous core dispatch requires
+reconciliation; no blind Retry. Deletion/retention/revocation are explicit desktop
+operations. Expert CLI/diagnostics may help implementation, but cannot replace
+the promised inbox in the complete release. No transcript content is silently
+modified to manufacture UI or reconciliation evidence.
 
-First measure same synthetic/owned non-private fixture before changes: audio duration, PCM bytes, encoded bytes, assembly, encoding, ASR/upload, total, chunk/segment count. No transcript, private URL or credentials in logs. Optimize largest measured local/network cost. Shipping upload is 16-bit PCM WAV at source sample rate/channel count. It halves Float32 payload while retaining original CAFs. AAC was rejected after two real bilingual ASR omissions despite correct decoded source audio. Validate ordered samples and quantization bounds, and use real speech coverage as well as byte size. Bounded segment concurrency is a candidate only after verified service limits and timing. Preserve chronological text order, connection cancellation and per-recipient mutation ordering. Do not send live agent prompts as tests or replay ambiguous send/create. ASR network calls may cost money; prefer mock contracts and synthetic transport measurement; if authorized test audio is used, report real provider timing separately from local baseline. No claim of maximum theoretical latency or speedup without evidence.
+## 9. Design validation
 
-## Concise text adaptation
+[Fable's review](specs/reviews/bb-watch-v2-fable-review.md) and the lead evaluate
+all routes: target mid-capture, search/mic interaction, X without a choice, New
+project/model, missing target Send, unsent draft parking, direct/detail Back,
+replay during capture, interrupted capture, offline/unknown receipt and pairing.
+Native simulator tours cover 49/45 mm default/large text, VoiceOver and Reduce
+Motion; hardware tests separately prove capture and background audio delivery.
+An installed binary alone is not navigation or reliability acceptance.
 
-Lifecycle, errors, elapsed and freshness come from source facts, never model inference. A concise foreground view can use actual activity and a short excerpt initially, explicitly documented as a fallback. Future hosted cheap-model summary gateway is demand-driven, revision-keyed and cached, only for selected active view; every glance must not cause a fresh model call. No invented model endpoint or secret. Original remains reachable. Do not expose private hidden reasoning; show user-facing activity/messages. If gateway cannot be implemented from verified existing contracts, report it separately rather than claim full AI summarization.
+Primary guidance:
+- [Apple HIG: Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets)
+- [Apple HIG: Modality](https://developer.apple.com/design/human-interface-guidelines/modality)
+- [Apple HIG: Designing for watchOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-watchos)
+- [Apple: Making background requests](https://developer.apple.com/documentation/watchos-apps/making-background-requests)
+- [Apple: WKURLSessionRefreshBackgroundTask](https://developer.apple.com/documentation/watchkit/wkurlsessionrefreshbackgroundtask)
+- [Apple: Life cycles](https://developer.apple.com/documentation/watchkit/life-cycles)
 
-## Verification and release
-
-Use focused behavioral checks for meaningful fixes, not text snapshots mirroring code. Exercise state projection/draft destination/frozen queued recipient, pause/autosave/relaunch, every permitted lifecycle action, failure/unknown acceptance, questions/Undo, no repeated animation on unchanged content. Update non-mutating simulator tour to new navigation; use deterministic local UI fixtures for transitions rather than live test messages. Capture simulator screenshots for working, new, chooser, capture/paused fixture, processing/history, question, result/failure; inspect legibility and scroll. Real mic/audio limitations of simulator must remain explicit.
-
-Run ./native/check.sh after integration; independent review after passing checks, resolve blockers; signed device build with developer identity. Install in place, preserve recordings/Keychain, never uninstall as repair. Verify actual install and process launch. Hardware audibility, LTE, interruptions and real transcription latency require measured/device evidence; user smoke is separate. Update HANDOFF/VALIDATION with exactly what passed and what remains. Bundle all three sessions in one build; no partial worker deployment.
+This is a product-specific design, not Apple certification. The architecture's
+platform/auth/ingress proofs remain release gates; UX cannot promise immediate
+background execution or exactly-once core mutation unsupported by BB.
