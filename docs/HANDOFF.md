@@ -1,4 +1,19 @@
-# Next product direction — reviewed specification 2.0, runtime gates open
+# Current design direction — Quick Voice, runtime gates open
+
+The latest minimal design is [Quick Voice](../specs/bb-watch-quick-voice.md), with
+[tap/history/Reply semantics](design/quick-voice-interactions.md),
+[navigation storyboard](design/quick-voice-interactions-v2.png),
+[capture/recovery states](design/quick-voice-states-v2.png) and a
+[fresh Fable approval packet](../specs/reviews/quick-voice-approval-pack.md).
+Read the [current independent verdict](../specs/reviews/quick-voice-fable-review.md).
+Action Button capture, compressed audio intake and computer-side ASR/Jev routing
+are proposals, not installed functionality. New context settings, pause/Continue,
+recipient lifetime and explicit Finish behavior are defined in that packet.
+The 2.0 architecture remains an inherited reliability baseline, not an approved
+implementation plan for Auto routing or lossy transport. No fresh implementation,
+worktree, device build or runtime-gate completion accompanies this design work.
+
+# Earlier direction — reviewed specification 2.0, runtime gates open
 
 The next product is a watch voice-delivery interface plus a BB intake plugin.
 Transcription and thread submission move to the computer. See the proposed

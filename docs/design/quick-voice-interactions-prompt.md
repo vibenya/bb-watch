@@ -1,0 +1,19 @@
+# Quick Voice interaction storyboard — generation brief
+
+Built-in image generation, 19 October 2026, with the project's lime Quick Voice
+concept as a style reference. This is concept artwork, not native UI evidence.
+[Interaction contract](quick-voice-interactions.md) governs exact behavior.
+
+```text
+Create a new six-panel interaction storyboard for BB QUICK VOICE, using the attached lime concept image ONLY as style reference: same black full-screen watch displays, bright lime #D5FF00 circular recording control, charcoal recipient row UNDER the circle, white system typography, restrained minimalism. Not a screenshot or a deployed app.
+One high-resolution landscape board on warm light gray, 3 columns x 2 rows. All displays same watch-like aspect, equal size. No watch bodies or bands, no phone frames. Outside the screens use small clear labels and arrows connecting 01→02→03 in first row and 04→05→06 in second row. Title "BB QUICK VOICE / TAP & REPLY". Upper-right time10:09 on screens. No giant timers, no extra dashboard. Colors black white neutral gray and lime only.
+FIRST ROW: changing the destination. Caption outside "A / Choose where the NEXT recording goes".
+01 "RECORDER": one large solid lime record circle upper-middle, no square because idle. Under it compact charcoal row text "To: Auto" with right chevron. Below thin separator, one small history row with audio glyph, text "Watch sync", small "Received by BB · 2m", lime check. Subtle outline/annotation OUTSIDE screen points specifically to "To: Auto", label "tap destination".
+02 "DESTINATION PICKER": native full-screen modal, visible circular X top-left, title "Send to", no Record button and no duplicated recipient header. Rows "Auto" selected with lime check; "Watch sync"; "Release notes"; "+ New thread…". Outside screen a tiny pointer at Watch sync row says "choose".
+03 "RECORDER / TARGET SET": same large lime record circle in identical place/size as01. Under it recipient pill says "To: Watch sync" with small pin and right chevron. Same unchanged previous history row below, text "Watch sync", "Received by BB · 2m" and lime check. Nothing is recording; no waveform. Outside small caption "Choice changes target only".
+SECOND ROW: opening a received recording then replying. Caption outside "B / Open a recording, then Reply".
+04 "HISTORY ON ROOT": same recorder with lime circle, targetrow "To: Auto", native scroll content shows history beneath; two rows Watch sync received and School queued. Outside pointer highlights HISTORY Watch sync row, NOT target. Small external annotation "tap saved recording".
+05 "RECORDING DETAIL": pushed native full-screen page, top-left back chevron (NOT X, NOT microphone), title "Recording". Main text "Watch sync", lime check with "Received by BB", secondary "0:24". Simple playback row with black triangle play icon on neutral gray circle and thin scrubber, clearly separate. Below a full-width lime capsule with BLACK label "Reply". Under it subdued text "Delete local copy" and tiny "Does not retract". No capture circle here, no ASR progress, no conversation messages, no Send again. Outside note "Replay or Reply".
+06 "RECORDER / REPLY READY": returns to same ROOT recorder as01 and03 with same idle lime circle, recipient pill pinned "To: Watch sync". Small secondary "Reply to this thread". History remains below. No active glow/no stop square/no waveform. Outside note "Tap Record to begin. Reply does not record or send."
+Use clean visual hierarchy. Destination is for the new/current compose, history row is a past recording. Make those two tap targets unmistakably different by the "To:" prefix and separation, not by extra screens. No red. All labels readable, no private data, synthetic names only. This is a design approval storyboard, not an implementation screenshot.
+```

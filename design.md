@@ -1,9 +1,13 @@
 # BB Watch — voice delivery design
 
+[Tap / history / Reply storyboard](docs/design/quick-voice-interactions-v2.png) ·
+[Interaction contract](docs/design/quick-voice-interactions.md) ·
+[New Fable approval packet](specs/reviews/quick-voice-approval-pack.md).
+
 **Minimal variant:** [BB Quick Voice](specs/bb-watch-quick-voice.md) defines the
 latest two-action proposal: shortcut starts capture, Finish & send queues
 compressed delivery, optional manual target below the control. Its
-[concept](docs/design/quick-voice.png) replaces the earlier sprite for this variant.
+[concept](docs/design/quick-voice-states-v2.png) replaces the earlier sprite for this variant.
 Technical/hardware proof remains pending.
 As of 19 October, the Quick Voice control and its halo use the existing lime
 accent `#D5FF00`, with a black stop glyph. This supersedes the older red capture
@@ -16,6 +20,14 @@ and plugin-assisted Auto routing / explicit Reply. [Visual references](docs/desi
 The 2.0 baseline below and its sprite require reconciliation with that update
 before implementation; do not treat old top-recipient or mandatory-target flows
 as the latest design.
+
+## Historical 2.0 baseline — superseded for Quick Voice
+
+**Every numbered section, diagram and state sketch below is historical for the
+minimal variant.** In particular red capture, separate Send, a separate Recordings
+page and mandatory New fields are superseded. Implement the current Quick Voice
+and interaction contracts linked above; retain only explicitly inherited safety
+invariants. The historical review cannot approve current navigation or routing.
 
 Version 2.0 · visual clarification 18 October 2026. Design for a fresh build,
 not the installed application. [Product contract](specs/bb-watch-product-spec.md).

@@ -37,16 +37,17 @@ Settings and explicit chooser utilities remain secondary.
   assume the discovered model proxy already preserves overrides.
 - A materially ambiguous spoken destination is held for resolution, with the
   audio retained and a visible attention state. Never use the nearest title or
-  last active thread as an undocumented fallback. The precise clarification
-  interaction and confidence policy are implementation-design work.
+  last active thread as an undocumented fallback. For this version clarification is on the computer in the plugin; the watch
+  explains Needs attention / Resolve on BB. Confidence calibration remains a
+  runtime routing gate.
 - Persist the routing decision before submission. Retries and later catalog
   changes cannot silently pick a different recipient/model for the same job.
 
 ## History and status
 
 History identifies the user's recordings, their actual destinations once known,
-and delivery facts. Repeated destinations may be grouped by thread with a Reply
-action; do not add a full agent conversation reader by implication. Unknown Auto
+and delivery facts. Rows are individual recordings, each opening one detail with Reply when a
+real thread is known; do not add a full agent conversation reader by implication. Unknown Auto
 destinations stay honestly unresolved until the plugin reports its decision.
 
 Main/list vocabulary is Saved locally, Queued, Received by BB and Needs attention,
