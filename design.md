@@ -1,9 +1,9 @@
 # BB Watch — voice delivery design
 
-**Latest control revision:** [record-first v3](docs/design/record-first-v3.md)
-uses the hero for record/pause/resume and fixed secondary cancel/finish actions,
-with less root copy. This user-directed revision is not covered by the previous
-Fable approval; the v2 review below remains a frozen historical verdict.
+**Latest control revision:** [direct-send v4](docs/design/direct-send-v4.md)
+uses the hero for start → labeled Send, with optional secondary pause/resume and
+cancel. It supersedes record-first v3. This user-directed revision is not covered
+by the previous Fable approval; the v2 review remains a frozen historical verdict.
 
 [Tap / history / Reply storyboard](docs/design/quick-voice-interactions-v2.png) ·
 [Interaction contract](docs/design/quick-voice-interactions.md) ·

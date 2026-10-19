@@ -1,5 +1,8 @@
 # Quick Voice — record-first control
 
+**Superseded:** [direct-send v4](direct-send-v4.md) restores start → Send as the
+normal two-action flow and removes the ambiguous checkmark transmission action.
+
 19 October 2026. User-directed visual revision; **not implemented or covered by
 the previous Fable approval**. Supersedes the v2 capture-control hierarchy and
 root explanatory copy only. Routing, receipts and audio-retention rules remain.
