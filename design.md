@@ -1,11 +1,11 @@
 # BB Watch — voice delivery design
 
-**Latest recorder revision:** [voice root v6](docs/design/voice-root-v6.md) and
-[all-state board](docs/design/voice-root-v6.png). No default Auto row: root is
-recording plus history; only an explicit recipient is pinned. Square stops/saves,
-then becomes microphone for appending to the same draft. Enter sends; playback
-belongs in history detail. No Send text or timer. This supersedes v5; the old
-Fable approval remains a frozen historical verdict, not approval of this revision.
+**Latest product reduction:** [voice terminal v7](docs/design/voice-terminal-v7.md)
+and [compact concept](docs/design/voice-terminal-v7.png). Only recorder and Threads
+sheet; one thread/activity component below controls. No recording history,
+receipt/detail/Reply/New pages, playback or delivery prose. Enter sends; square
+stops/saves then becomes microphone to append. Notification reply opens this same
+recorder. This supersedes v6; old Fable approval does not cover this revision.
 
 [Tap / history / Reply storyboard](docs/design/quick-voice-interactions-v2.png) ·
 [Interaction contract](docs/design/quick-voice-interactions.md) ·

@@ -1,10 +1,11 @@
 # BB Quick Voice — minimal version
 
-**Latest recorder override:** [voice root v6](../docs/design/voice-root-v6.md).
-No default Auto row: only explicit targets are shown; bottom rows are recording
-history. Enter sends; square stops/saves and becomes microphone to append to the
-same recording, never Play. Playback is in history detail. No Send text/timer.
-This supersedes recorder descriptions/art below; delivery invariants remain.
+**Latest scope override:** [voice terminal v7](../docs/design/voice-terminal-v7.md).
+Record/send loop plus one thread/status row and one Threads sheet. Remove recording
+history, receipt/detail/Reply/New routes and playback. Square stops/saves then
+becomes microphone to append; Enter sends. A notification link opens the same
+recorder with exact thread context, subject to a platform proof. No Send text or
+timer. This supersedes the watch surfaces below; reliability invariants remain.
 The old Fable approval does not cover this user-directed revision.
 
 Updated 19 October 2026. **Product/design proposal for the latest user request; not an

@@ -1,5 +1,8 @@
 # Quick Voice — recording and history, no default destination row
 
+**Superseded:** [voice terminal v7](voice-terminal-v7.md) removes recording history,
+playback and detail/Reply/New pages. Only recorder and one Threads sheet remain.
+
 19 October 2026. Latest user-directed revision, **not implemented or covered by
 the frozen Fable review**. Supersedes v5's persistent Auto pill and saved Play
 control; preserves BB's waveform and Enter/square/X icon language.
