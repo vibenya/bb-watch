@@ -1,3 +1,13 @@
+# Implementation preparation — fresh voice terminal build
+
+The [implementation plan](../specs/bb-watch-implementation-plan.md) sequences
+Sol 6.1 plugin/contract work and Astra native watch work. User clarification:
+Jev obtains recent thread/message context on the computer; the watch collects
+no notification context. Exact manually selected targets remain binding.
+A fresh source-free branch is prepared from the current behavioral documents;
+Phase 0 contracts/platform proofs precede full implementation. The installed
+app and original recordings remain untouched. No runtime gate is closed.
+
 # Current product direction — voice terminal 3.0, runtime gates open
 
 Read the canonical [product contract](../specs/bb-watch-product-spec.md),

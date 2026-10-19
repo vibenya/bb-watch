@@ -20,6 +20,11 @@ on the computer, an external input adapter like a Telegram connector. The watch
 owns capture, recoverable original audio, recipient intent and durable delivery.
 The plugin owns audio intake, decoding/transcription, Jev-assisted destination /
 model selection and BB submission. Provider keys and ASR calls stay off the watch.
+For unbound BB routing, Jev uses authorized recent messages and thread history
+obtained on the computer. The watch sends audio and routing intent, not the
+last notification, its payload or a copy of conversation history. A manual exact
+thread remains binding; Jev does not silently override it.
+
 Computer-side orchestration may use configured hosted services; it is not a claim
 of fully local inference. The computer may be asleep or unreachable; the product
 does not claim to wake it or require a nearby iPhone.

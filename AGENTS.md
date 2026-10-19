@@ -6,7 +6,8 @@ Read `docs/HANDOFF.md`, `native/README.md`, and `specs/bb-watch-product-spec.md`
 The specification describes the intended product; it is not a completion claim.
 Version 3.0 specifies a two-surface voice terminal plus a BB plugin that owns
 audio intake, transcription and submission. Read `design.md` and
-`specs/bb-watch-transition-contract.md` for current behavior. The 2.0 architecture
+`specs/bb-watch-transition-contract.md` for current behavior, and
+`specs/bb-watch-implementation-plan.md` for the authorized fresh-build sequence. The 2.0 architecture
 is an inherited safety/platform baseline that needs reconciliation before rewrite;
 its runtime gates are unproven. Do not apply installed conversation/question,
 recording-history or playback requirements to 3.0.

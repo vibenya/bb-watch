@@ -197,6 +197,10 @@ Thread glyphs never use input transient-spinner shapes. The checkmark is reserve
 for current-context selection, not Done. The older v8 raster ring/check shapes
 are illustrative; this shape table and the [annotated companion](../docs/design/voice-terminal-v8-delivery.svg) take precedence.
 
+Unbound BB routing uses computer-side recent message/thread context. Capture
+and quick-start never request the last notification or upload conversation
+history from the watch. Manual exact thread intent remains binding.
+
 The current context persists per connection across Enter, relaunch and
 quick-start until the user picks another or applies a link. A route or receipt
 never changes it. A known-unavailable current thread stays current until changed.

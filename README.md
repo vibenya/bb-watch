@@ -17,6 +17,9 @@ separate. The [earlier engineering plan](specs/bb-watch-architecture.md) and Fab
 reviews are historical baselines, not approval of 3.0. Remote admission, codec /
 ASR, capture, complete background delivery, routing and deep links remain gates.
 
+See the [fresh-build implementation plan](specs/bb-watch-implementation-plan.md)
+for ownership, gated probes and integration order.
+
 ## Installed 0.2.0 scope
 
 - Durable chunked recording with pause, save, recovery and explicit Send.
