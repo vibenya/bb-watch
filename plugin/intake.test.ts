@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createFakePluginHost, experimental_scanPublicSdkOnly } from '@get-bb/plugin-sdk/testing';
-import plugin from './server.ts';
+import plugin from './v1-fixture-server.ts';
 import { Intake, sha256 } from './intake.ts';
 import { response } from './protocol.ts';
 import { audio, fixtureScope, fixtureToken, fixtureHeaders, makeManifest, declaration } from './fixtures.ts';

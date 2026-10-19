@@ -26,7 +26,7 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test intake.test.ts",
+    "test": "node --experimental-strip-types --test intake.test.ts integration.test.ts",
     "schema": "node --experimental-strip-types generate-contract.ts"
   },
   "engines": {

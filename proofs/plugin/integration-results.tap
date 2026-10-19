@@ -1,0 +1,146 @@
+
+> bb-plugin-voice-terminal@0.0.1 test
+> node --experimental-strip-types --test intake.test.ts integration.test.ts
+
+TAP version 13
+# Subtest: HTTP boundary denies missing/wrong/revoked keys and isolates scopes without leaking receipt
+ok 1 - HTTP boundary denies missing/wrong/revoked keys and isolates scopes without leaking receipt
+  ---
+  duration_ms: 27.726542
+  type: 'test'
+  ...
+# Subtest: complete immutable intake survives lost response, duplicate/out-of-order part, concurrent seal and SDK reload
+ok 2 - complete immutable intake survives lost response, duplicate/out-of-order part, concurrent seal and SDK reload
+  ---
+  duration_ms: 10.978834
+  type: 'test'
+  ...
+# Subtest: fence wins before late seal, target denial is durably nonaccepted, status unknown is not a fence
+ok 3 - fence wins before late seal, target denial is durably nonaccepted, status unknown is not a fence
+  ---
+  duration_ms: 6.466084
+  type: 'test'
+  ...
+# Subtest: identity conflict, malformed order and source layout cannot rewrite accepted intent or open a job
+ok 4 - identity conflict, malformed order and source layout cannot rewrite accepted intent or open a job
+  ---
+  duration_ms: 6.048083
+  type: 'test'
+  ...
+# Subtest: never-received BB predecessor blocks exact target; acknowledged fence releases, independent exact lanes do not wait
+ok 5 - never-received BB predecessor blocks exact target; acknowledged fence releases, independent exact lanes do not wait
+  ---
+  duration_ms: 7.947708
+  type: 'test'
+  ...
+# Subtest: committed source, receipt and fence survive separate process exit/reopen; interrupted transaction cannot fabricate receipt
+ok 6 - committed source, receipt and fence survive separate process exit/reopen; interrupted transaction cannot fabricate receipt
+  ---
+  duration_ms: 245.555167
+  type: 'test'
+  ...
+# Subtest: job write failure returns no receipt and preserves original identity and bytes for same-ID retry
+ok 7 - job write failure returns no receipt and preserves original identity and bytes for same-ID retry
+  ---
+  duration_ms: 5.75
+  type: 'test'
+  ...
+# Subtest: only public SDK imports and declared local dependencies are used
+ok 8 - only public SDK imports and declared local dependencies are used
+  ---
+  duration_ms: 1.821667
+  type: 'test'
+  ...
+# Subtest: v2 is explicit, privileged caller authority is required and unknown current identity fails closed
+ok 9 - v2 is explicit, privileged caller authority is required and unknown current identity fails closed
+  ---
+  duration_ms: 30.699625
+  type: 'test'
+  ...
+# Subtest: device-chosen token redemption is one-use/idempotent after expiry, reload and lost reply; no raw token DB
+ok 10 - device-chosen token redemption is one-use/idempotent after expiry, reload and lost reply; no raw token DB
+  ---
+  duration_ms: 7.544666
+  type: 'test'
+  ...
+# Subtest: expiry, per-code attempts and global attempt budget commit on denials; current grants and revocation revalidate
+ok 11 - expiry, per-code attempts and global attempt budget commit on denials; current grants and revocation revalidate
+  ---
+  duration_ms: 18.479792
+  type: 'test'
+  ...
+# Subtest: same-device operator repair rotates key while preserving connection/epoch and all order facts
+ok 12 - same-device operator repair rotates key while preserving connection/epoch and all order facts
+  ---
+  duration_ms: 6.140708
+  type: 'test'
+  ...
+# Subtest: 130 sequential Sends compact by durable checkpoints without dropping early BB barrier or requiring earlier audio
+ok 13 - 130 sequential Sends compact by durable checkpoints without dropping early BB barrier or requiring earlier audio
+  ---
+  duration_ms: 346.584208
+  type: 'test'
+  ...
+# Subtest: forged/cross-epoch/cross-scope checkpoints, request collisions, gaps and concurrent sequence collisions fail closed
+ok 14 - forged/cross-epoch/cross-scope checkpoints, request collisions, gaps and concurrent sequence collisions fail closed
+  ---
+  duration_ms: 6.8185
+  type: 'test'
+  ...
+# Subtest: computer-only SDK context and injected Jev persist one scoped decision; resolved BB frees independent U but retains T unknown barrier after source reclamation
+ok 15 - computer-only SDK context and injected Jev persist one scoped decision; resolved BB frees independent U but retains T unknown barrier after source reclamation
+  ---
+  duration_ms: 11.3725
+  type: 'test'
+  ...
+# Subtest: exact target never uses destination chooser; spoken conflict holds and cannot reserve a core attempt
+ok 16 - exact target never uses destination chooser; spoken conflict holds and cannot reserve a core attempt
+  ---
+  duration_ms: 5.114708
+  type: 'test'
+  ...
+# Subtest: untrusted Jev IDs/project/model, ambiguity, low confidence, provider failure and new-thread policy cannot widen grants
+ok 17 - untrusted Jev IDs/project/model, ambiguity, low confidence, provider failure and new-thread policy cannot widen grants
+  ---
+  duration_ms: 33.759209
+  type: 'test'
+  ...
+# Subtest: decision completion and cached decisions revalidate current policy; SDK context failure persists hold with no provider fallback
+ok 18 - decision completion and cached decisions revalidate current policy; SDK context failure persists hold with no provider fallback
+  ---
+  duration_ms: 11.154958
+  type: 'test'
+  ...
+# Subtest: v2 checkpoint and redemption survive OS process reopen with retained exact client payload and missing-source barrier
+ok 19 - v2 checkpoint and redemption survive OS process reopen with retained exact client payload and missing-source barrier
+  ---
+  duration_ms: 254.745667
+  type: 'test'
+  ...
+# Subtest: checkpoint failure cannot acknowledge uncommitted facts; same request ID requires original bytes
+ok 20 - checkpoint failure cannot acknowledge uncommitted facts; same request ID requires original bytes
+  ---
+  duration_ms: 5.26175
+  type: 'test'
+  ...
+# Subtest: checkpoint hash uses the independent ASCII-array cross-language contract vectors
+ok 21 - checkpoint hash uses the independent ASCII-array cross-language contract vectors
+  ---
+  duration_ms: 2.72875
+  type: 'test'
+  ...
+# Subtest: oversized original title/message holds before Jev, preserving trailing correction instead of truncating
+ok 22 - oversized original title/message holds before Jev, preserving trailing correction instead of truncating
+  ---
+  duration_ms: 10.351
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 887.365583

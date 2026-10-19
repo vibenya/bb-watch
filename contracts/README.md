@@ -1,4 +1,10 @@
-# Voice terminal protocol v1 — Phase 0 PROPOSAL
+# Voice terminal contracts — proposals
+
+Current bounded integration proposal: [v2](voice-terminal-v2.md), [schema](voice-terminal-v2.schema.json), [synthetic examples](voice-terminal-v2.examples.json). No protocol freeze. Current default server accepts only explicit v2 paths/envelopes and fails closed without reviewed authority adapters.
+
+The remainder documents the prior v1 fixture boundary; its full-history/64-position wire is historical and is NOT the v2 production proposal.
+
+## Voice terminal protocol v1 — prior Phase 0 proposal
 
 Owner: Sol. Lead acceptance pending; Astra validated only the source-layout clarification. This does not close BLK-1,
 BLK-2, BLK-3, TG3, TG4, TG13 or remote admission. Product/design 3.0 remain authoritative.

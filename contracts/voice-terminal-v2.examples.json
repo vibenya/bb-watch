@@ -1,0 +1,218 @@
+{
+  "notice": "Synthetic DTO examples, not admission/Keychain/checkpoint receipts or runtime proof.",
+  "checkpointRequest": {
+    "v": 2,
+    "kind": "checkpoint",
+    "requestId": "checkpoint-request",
+    "epoch": "fixture-epoch",
+    "base": null,
+    "facts": [
+      {
+        "operationId": "missing-bb",
+        "sequence": 1,
+        "intent": {
+          "kind": "bb"
+        }
+      }
+    ]
+  },
+  "checkpointResponse": {
+    "v": 2,
+    "kind": "checkpoint",
+    "scope": {
+      "instanceId": "fixture-instance",
+      "accountId": "fixture-account",
+      "connectionId": "fixture-connection",
+      "deviceId": "fixture-watch"
+    },
+    "requestId": "checkpoint-request",
+    "checkpoint": {
+      "checkpointId": "fixture-checkpoint",
+      "epoch": "fixture-epoch",
+      "throughSequence": 1,
+      "factsHash": "34b713fb8329bb2eb561eb55a4a879c268f036552e44eb7f4a55a71bdb69675f"
+    }
+  },
+  "successorManifest": {
+    "v": 2,
+    "scope": {
+      "instanceId": "fixture-instance",
+      "accountId": "fixture-account",
+      "connectionId": "fixture-connection",
+      "deviceId": "fixture-watch"
+    },
+    "operationId": "successor",
+    "intent": {
+      "kind": "thread",
+      "threadId": "thread-U"
+    },
+    "order": {
+      "epoch": "fixture-epoch",
+      "sequence": 2,
+      "checkpoint": {
+        "checkpointId": "fixture-checkpoint",
+        "epoch": "fixture-epoch",
+        "throughSequence": 1,
+        "factsHash": "34b713fb8329bb2eb561eb55a4a879c268f036552e44eb7f4a55a71bdb69675f"
+      },
+      "predecessors": []
+    },
+    "audio": {
+      "parts": [
+        {
+          "index": 0,
+          "segmentId": "segment-0",
+          "encoded": {
+            "encoding": "fixture-u8",
+            "bytes": 4,
+            "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+          },
+          "source": {
+            "sampleFormat": "fixture-u8",
+            "endian": "little",
+            "interleaved": true,
+            "sampleRateHz": 16000,
+            "channels": 1,
+            "frames": 4,
+            "bytes": 4,
+            "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+          }
+        },
+        {
+          "index": 1,
+          "segmentId": "segment-1",
+          "encoded": {
+            "encoding": "fixture-u8",
+            "bytes": 2,
+            "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+          },
+          "source": {
+            "sampleFormat": "fixture-u8",
+            "endian": "little",
+            "interleaved": true,
+            "sampleRateHz": 48000,
+            "channels": 1,
+            "frames": 2,
+            "bytes": 2,
+            "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+          }
+        }
+      ],
+      "incompleteness": [
+        {
+          "afterPartIndex": 0,
+          "reason": "interruption"
+        }
+      ]
+    }
+  },
+  "declare": {
+    "v": 2,
+    "kind": "declare",
+    "manifestUtf8": "{\"v\":2,\"scope\":{\"instanceId\":\"fixture-instance\",\"accountId\":\"fixture-account\",\"connectionId\":\"fixture-connection\",\"deviceId\":\"fixture-watch\"},\"operationId\":\"successor\",\"intent\":{\"kind\":\"thread\",\"threadId\":\"thread-U\"},\"order\":{\"epoch\":\"fixture-epoch\",\"sequence\":2,\"checkpoint\":{\"checkpointId\":\"fixture-checkpoint\",\"epoch\":\"fixture-epoch\",\"throughSequence\":1,\"factsHash\":\"34b713fb8329bb2eb561eb55a4a879c268f036552e44eb7f4a55a71bdb69675f\"},\"predecessors\":[]},\"audio\":{\"parts\":[{\"index\":0,\"segmentId\":\"segment-0\",\"encoded\":{\"encoding\":\"fixture-u8\",\"bytes\":4,\"sha256\":\"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a\"},\"source\":{\"sampleFormat\":\"fixture-u8\",\"endian\":\"little\",\"interleaved\":true,\"sampleRateHz\":16000,\"channels\":1,\"frames\":4,\"bytes\":4,\"sha256\":\"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a\"}},{\"index\":1,\"segmentId\":\"segment-1\",\"encoded\":{\"encoding\":\"fixture-u8\",\"bytes\":2,\"sha256\":\"c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623\"},\"source\":{\"sampleFormat\":\"fixture-u8\",\"endian\":\"little\",\"interleaved\":true,\"sampleRateHz\":48000,\"channels\":1,\"frames\":2,\"bytes\":2,\"sha256\":\"c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623\"}}],\"incompleteness\":[{\"afterPartIndex\":0,\"reason\":\"interruption\"}]}}",
+    "manifestSha256": "f5217f58be4ef8a4d53f58466547105331de7e3e61e544e9a44e41de7586ab5b"
+  },
+  "redemption": {
+    "v": 2,
+    "kind": "redeem",
+    "requestId": "pair-request",
+    "setupCode": "012345abcdef",
+    "deviceId": "fixture-watch",
+    "tokenSha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "paired": {
+    "v": 2,
+    "kind": "paired",
+    "requestId": "pair-request",
+    "scope": {
+      "instanceId": "fixture-instance",
+      "accountId": "fixture-account",
+      "connectionId": "fixture-connection",
+      "deviceId": "fixture-watch"
+    },
+    "keyId": "fixture-key",
+    "tokenSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "epoch": "fixture-epoch",
+    "grants": {
+      "revision": "fixture-policy",
+      "threads": [
+        {
+          "threadId": "thread-U",
+          "projectId": "project-P"
+        }
+      ],
+      "projects": [
+        "project-P"
+      ],
+      "allowNew": false
+    },
+    "stagedAudioPolicy": "explicit-send-opt-in-required"
+  },
+  "pairingTransaction": {
+    "v": 2,
+    "requestId": "pair-request",
+    "deviceId": "fixture-watch",
+    "keychainReference": "fixture-keychain-reference",
+    "tokenSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "tokenReadBackVerified": true,
+    "exactRequestSha256": "191a2f92a66bba874ca2c3e4e241fdcdf81b8f62b54ef815568db5be061058a8",
+    "requestFileReference": "fixture-redemption-file"
+  },
+  "checkpointCommit": {
+    "v": 2,
+    "scope": {
+      "instanceId": "fixture-instance",
+      "accountId": "fixture-account",
+      "connectionId": "fixture-connection",
+      "deviceId": "fixture-watch"
+    },
+    "epoch": "fixture-epoch",
+    "checkpoint": {
+      "checkpointId": "fixture-checkpoint",
+      "epoch": "fixture-epoch",
+      "throughSequence": 1,
+      "factsHash": "34b713fb8329bb2eb561eb55a4a879c268f036552e44eb7f4a55a71bdb69675f"
+    },
+    "coveredSequence": 1,
+    "exactRequestSha256": "2ceee5408949641a9fa50361ae675bff3774652a1a388fd4a800b4b7df581f3b",
+    "requestId": "checkpoint-request",
+    "localLedgerRetained": true
+  },
+  "stagedOptIn": {
+    "v": 2,
+    "kind": "staged-send-opt-in",
+    "scope": {
+      "instanceId": "fixture-instance",
+      "accountId": "fixture-account",
+      "connectionId": "fixture-connection",
+      "deviceId": "fixture-watch"
+    },
+    "epoch": "fixture-epoch",
+    "stagedIds": [
+      "staged-audio-1"
+    ],
+    "confirmed": true
+  },
+  "forbidden": [
+    {
+      "case": "checkpoint ack lost",
+      "action": "retry exact durable file/requestId; retain full local facts until ack committed"
+    },
+    {
+      "case": "Keychain inaccessible",
+      "action": "freeze same transaction; never mint a replacement token"
+    },
+    {
+      "case": "early BB unresolved",
+      "action": "all possible lanes remain blocked despite checkpoint"
+    },
+    {
+      "case": "early BB resolved T but core unknown",
+      "action": "T blocked; known U independent"
+    },
+    {
+      "case": "explicit operator release of unknown",
+      "action": "order release only; original attempt stays reconcile-only"
+    }
+  ]
+}

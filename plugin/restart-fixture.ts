@@ -2,7 +2,7 @@
 import Database from 'better-sqlite3';
 import assert from 'node:assert/strict';
 import { createFakePluginHost } from '@get-bb/plugin-sdk/testing';
-import plugin from './server.ts';
+import plugin from './v1-fixture-server.ts';
 import { sha256 } from './intake.ts';
 import { audio, fixtureScope, fixtureToken, fixtureHeaders, makeManifest, declaration } from './fixtures.ts';
 const [path,phase] = process.argv.slice(2);
