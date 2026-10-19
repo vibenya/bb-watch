@@ -102,3 +102,30 @@ network route and foreground/background state must be recorded per trial.
 Report each trial with pass/fail/not-run, timestamps, frame/hash observations,
 source revision, fixture ID and dependency. Do not mark any gate passed merely
 because an API compiled, an animation appeared or a task returned HTTP 200.
+
+## Native sealed-part codec follow-up — NOT RUN on hardware
+
+1. After a separate physical window, run the same synthetic codec fixtures without
+   microphone capture. Preserve original raw PCM/layout/hash and all candidate
+   files. Record watch model/OS, encoder/decoder implementation, source/encoded/
+   decoded bytes and per-part rate/channels/frame counts. Confirm unsupported rate,
+   source corruption and output failure retain source and hold the candidate.
+2. Export only those newly generated synthetic candidates through the explicitly
+   approved path. Decode the *same M4A bytes* with the intended computer decoder;
+   record its actual format/frames and compare ordered boundary markers. Host
+   encoding of similar PCM is not cross-decoding evidence. Never trim a second
+   time using packet priming if the decoder already returns playable frames.
+3. Measure actual capture-format/route changes only in an authorized speech trial.
+   Keep per-part source mapping and interruption boundaries; never sum frames
+   across rates as elapsed duration. Codec failure must hold exact source rather
+   than silently replacing it or shipping an unapproved raw fallback.
+4. Only a reviewed timeline/receipt policy and authorized RU/EN speech comparison
+   can establish release fidelity. Current synthetic correlations, packet tables,
+   simulator codec results and HTTP observations authorize no source cleanup.
+
+The latest simulator transport probe failed before intake because its background
+session daemon was unavailable. A physical trial must instrument `session-created`,
+`getAllTasks`, task creation/attachment/resume, completion/error, observation-durable,
+finished-events and WatchKit refresh delivery/completion. Match private task/record
+identity across relaunch; record missing callbacks as unknown, not success. Public
+reports omit device/process IDs and payloads. See [bounded report](milestone1-2.md).

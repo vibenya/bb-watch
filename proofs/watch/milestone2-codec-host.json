@@ -1,0 +1,277 @@
+{
+  "boundaryLeft700to1200EnergyRatio": 1711.6833690808523,
+  "boundaryRight1200to700EnergyRatio": 976.3305780887574,
+  "cases": [
+    {
+      "correlation": 0.9993060677843679,
+      "measurement": {
+        "decodedChannels": 1,
+        "decodedFrames": 480,
+        "decodedRate": 48000,
+        "decodedSHA256": "ee4cab8b4324bca21eebe775d6aa9a2275c966c7d75445771418c696a5342579",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 480,
+        "encodedBytes": 61666,
+        "encodedChannels": 1,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "8e9c2eada7025dcc40df2bd466a3468ea9f33eb8e476df79f99cd42511a64405",
+        "manualTrimFrames": 0,
+        "packetTimeline": {
+          "framesPerPacket": 1024,
+          "packets": 3,
+          "primingFrames": 2112,
+          "remainderFrames": 480,
+          "validFrames": 480
+        },
+        "source": {
+          "channels": 1,
+          "endian": "little",
+          "frames": 480,
+          "interleaved": true,
+          "sampleFormat": "float32",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 1920,
+        "sourceSHA256": "ecee463714e965e8b7b39a51ae27c08a0126bf049f732487a7d2fb801533def6",
+        "sourceUnchanged": true
+      },
+      "name": "short-mono",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9995009413688457,
+      "measurement": {
+        "decodedChannels": 1,
+        "decodedFrames": 6000,
+        "decodedRate": 48000,
+        "decodedSHA256": "cfc272e1061b8c9ab280f6b2fdd1c43f98ae4f9fa1aa60e521a73b764328833e",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 6000,
+        "encodedBytes": 61955,
+        "encodedChannels": 1,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "b2aa6f10a6f11617b719d1a4f7006f0d7418e690941a94451a832834ba665cfa",
+        "manualTrimFrames": 0,
+        "packetTimeline": {
+          "framesPerPacket": 1024,
+          "packets": 8,
+          "primingFrames": 2112,
+          "remainderFrames": 80,
+          "validFrames": 6000
+        },
+        "source": {
+          "channels": 1,
+          "endian": "little",
+          "frames": 6000,
+          "interleaved": true,
+          "sampleFormat": "float32",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 24000,
+        "sourceSHA256": "4605cae490c9caa44b7473787ef541afc9d02fe0964a3f6b1192094b0271de9c",
+        "sourceUnchanged": true
+      },
+      "name": "append-left",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9991645653847285,
+      "measurement": {
+        "decodedChannels": 1,
+        "decodedFrames": 6000,
+        "decodedRate": 48000,
+        "decodedSHA256": "cac4e96b9eeb517e11c6465f53ffb179a8655afccd529dfee40c2c3c2051cfb8",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 6000,
+        "encodedBytes": 61971,
+        "encodedChannels": 1,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "048d2c663938f70c86c3b7446e358cc0f47e1c043ff2b78f214949b83173a4a1",
+        "manualTrimFrames": 0,
+        "packetTimeline": {
+          "framesPerPacket": 1024,
+          "packets": 8,
+          "primingFrames": 2112,
+          "remainderFrames": 80,
+          "validFrames": 6000
+        },
+        "source": {
+          "channels": 1,
+          "endian": "little",
+          "frames": 6000,
+          "interleaved": true,
+          "sampleFormat": "float32",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 24000,
+        "sourceSHA256": "cad6175ab5076658ab795b5b3de7333c6cf983d0709538ccc1dad0e0a893c552",
+        "sourceUnchanged": true
+      },
+      "name": "append-right",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9995416985281853,
+      "measurement": {
+        "decodedChannels": 2,
+        "decodedFrames": 11025,
+        "decodedRate": 44100,
+        "decodedSHA256": "6b325bde7cf5e9b389999713cce2726bbeb8160e85d3f6c529bda702a2b934bc",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 11025,
+        "encodedBytes": 58814,
+        "encodedChannels": 2,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 44100,
+        "encodedSHA256": "03e702f601765255dec88acdb3e3dcee832b0311480673604ee3dd83700868ec",
+        "manualTrimFrames": 0,
+        "packetTimeline": {
+          "framesPerPacket": 1024,
+          "packets": 13,
+          "primingFrames": 2112,
+          "remainderFrames": 175,
+          "validFrames": 11025
+        },
+        "source": {
+          "channels": 2,
+          "endian": "little",
+          "frames": 11025,
+          "interleaved": false,
+          "sampleFormat": "int16",
+          "sampleRate": 44100
+        },
+        "sourceBytes": 44100,
+        "sourceSHA256": "2444d4e5e8227ea22704c6d2ecb230f05a9e1b75d64154bc9ecfcc0452975b92",
+        "sourceUnchanged": true
+      },
+      "name": "route-stereo-int16-planar",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9996729363934572,
+      "measurement": {
+        "decodedChannels": 2,
+        "decodedFrames": 8000,
+        "decodedRate": 32000,
+        "decodedSHA256": "3683da3f636ba6b0749541e2617b805498e216ed2a216f242d8342945ec27ce4",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 8000,
+        "encodedBytes": 46179,
+        "encodedChannels": 2,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 32000,
+        "encodedSHA256": "99d23cbc8749a2a6ef87bdf983f252512080afc84598002ea81828f86a902afc",
+        "manualTrimFrames": 0,
+        "packetTimeline": {
+          "framesPerPacket": 1024,
+          "packets": 10,
+          "primingFrames": 2112,
+          "remainderFrames": 128,
+          "validFrames": 8000
+        },
+        "source": {
+          "channels": 2,
+          "endian": "little",
+          "frames": 8000,
+          "interleaved": false,
+          "sampleFormat": "float32",
+          "sampleRate": 32000
+        },
+        "sourceBytes": 64000,
+        "sourceSHA256": "725f53b6f80421a64e1b6c7fe1855306e224d4f8a883f98d01f953f6febffd6d",
+        "sourceUnchanged": true
+      },
+      "name": "route-stereo-float-planar",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9996469908660008,
+      "measurement": {
+        "decodedChannels": 2,
+        "decodedFrames": 12000,
+        "decodedRate": 48000,
+        "decodedSHA256": "497dbfcdd39b3114829eb0272510ddfa79d71be3f08cadd5390b29b0aae7d63e",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 12000,
+        "encodedBytes": 62995,
+        "encodedChannels": 2,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "63b1ae0ecffc5207107cba22990b59a67c836afe19a7706d8f375c143d86b46a",
+        "manualTrimFrames": 0,
+        "packetTimeline": {
+          "framesPerPacket": 1024,
+          "packets": 14,
+          "primingFrames": 2112,
+          "remainderFrames": 224,
+          "validFrames": 12000
+        },
+        "source": {
+          "channels": 2,
+          "endian": "little",
+          "frames": 12000,
+          "interleaved": true,
+          "sampleFormat": "int16",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 48000,
+        "sourceSHA256": "461dbbabfe3abbcc8fa687d9538014155b74d1c4cfb5106118668146e0c5d59b",
+        "sourceUnchanged": true
+      },
+      "name": "route-stereo-int16-interleaved",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "errorCode": 1,
+      "errorDomain": "ProbeCodec.UnsupportedPCM",
+      "errorStage": "validate-source",
+      "name": "unsupported-channels",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    },
+    {
+      "errorCode": -66567,
+      "errorDomain": "com.apple.coreaudio.avfaudio",
+      "errorStage": "write-AAC-buffer",
+      "name": "unsupported-encoder-rate",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    },
+    {
+      "errorCode": 3,
+      "errorDomain": "ProbeCore.ProbeError",
+      "errorStage": "read-source-PCM",
+      "name": "nonfinite-source",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    },
+    {
+      "errorCode": 516,
+      "errorDomain": "NSCocoaErrorDomain",
+      "errorStage": "create-candidate-directory",
+      "name": "destination-obstructed",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    }
+  ],
+  "chronologicalBoundaryPassed": true,
+  "speechQuality": "not-run; synthetic signal only",
+  "version": 1,
+  "environment": "macOS host AVFoundation",
+  "packetTimelineNullMeans": "unknown/not available, never zero"
+}

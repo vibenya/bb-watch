@@ -1,0 +1,11 @@
+short-mono: measured-candidate
+append-left: measured-candidate
+append-right: measured-candidate
+route-stereo-int16-planar: measured-candidate
+route-stereo-float-planar: measured-candidate
+route-stereo-int16-interleaved: measured-candidate
+unsupported-channels: expected-hold-source-retained
+unsupported-encoder-rate: expected-hold-source-retained
+nonfinite-source: expected-hold-source-retained
+destination-obstructed: expected-hold-source-retained
+PASS watch simulator native AAC-LC: six candidates, four retained-source failures, chronological boundary

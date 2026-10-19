@@ -121,3 +121,13 @@ try FileManager.default.moveItem(at: observationBackup, to: observationFile)
 try observationStore.recoverObservations()
 try require(!observationStore.hasUnpersistedObservations && observationStore.records[0].httpStatus == 200, "refresh recovery lost observation")
 print("PASS failed transfer observation retained across finish/readback failure, then persisted without replay")
+
+let invocationStore = try TransferLedger(root: root.appendingPathComponent("invocation"))
+let invocationID = UUID()
+let invocation = try invocationStore.plan(body: Data("fixed".utf8), endpoint: endpoint, method: "PUT", requestID: invocationID)
+_ = try invocationStore.reconcile([])
+let repeated = try invocationStore.plan(body: Data("fixed".utf8), endpoint: endpoint, method: "PUT", requestID: invocationID)
+try require(invocationStore.records.count == 1 && repeated.id == invocation.id && repeated.phase == "needs-reconciliation", "explicit invocation replay minted a request")
+do { _ = try invocationStore.plan(body: Data("changed".utf8), endpoint: endpoint, method: "PUT", requestID: invocationID); throw NSError(domain: "identity conflict accepted", code: 1) }
+catch ProbeError.invalid { }
+print("PASS durable fixture invocation identity: same request remains uncertain; conflicting body rejected")

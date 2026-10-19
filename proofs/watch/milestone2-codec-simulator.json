@@ -1,0 +1,241 @@
+{
+  "boundaryLeft700to1200EnergyRatio": 933.3016736839521,
+  "boundaryRight1200to700EnergyRatio": 954.9867942436647,
+  "cases": [
+    {
+      "correlation": 0.9981018457907015,
+      "measurement": {
+        "decodedChannels": 1,
+        "decodedFrames": 480,
+        "decodedRate": 48000,
+        "decodedSHA256": "d474e6881ae7e6457f77867a7709b8528a64b589a660c3da2e635008bed3e276",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 480,
+        "encodedBytes": 61650,
+        "encodedChannels": 1,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "3d15ff884970706a46d4765f2c958cf817e776fa663c2be6e350ec787017409c",
+        "manualTrimFrames": 0,
+        "source": {
+          "channels": 1,
+          "endian": "little",
+          "frames": 480,
+          "interleaved": true,
+          "sampleFormat": "float32",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 1920,
+        "sourceSHA256": "ecee463714e965e8b7b39a51ae27c08a0126bf049f732487a7d2fb801533def6",
+        "sourceUnchanged": true,
+        "packetTimeline": null
+      },
+      "name": "short-mono",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9985351973266839,
+      "measurement": {
+        "decodedChannels": 1,
+        "decodedFrames": 6000,
+        "decodedRate": 48000,
+        "decodedSHA256": "97c97dc5c3a3623fd8196a9e2286d2353de272e5028c7fa1e9c8c4a54a836141",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 6000,
+        "encodedBytes": 61917,
+        "encodedChannels": 1,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "7143a27b723dfc579dbba836850dcc9a9f472f644b37d7321ba74935d9bce8f8",
+        "manualTrimFrames": 0,
+        "source": {
+          "channels": 1,
+          "endian": "little",
+          "frames": 6000,
+          "interleaved": true,
+          "sampleFormat": "float32",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 24000,
+        "sourceSHA256": "4605cae490c9caa44b7473787ef541afc9d02fe0964a3f6b1192094b0271de9c",
+        "sourceUnchanged": true,
+        "packetTimeline": null
+      },
+      "name": "append-left",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9976558220847903,
+      "measurement": {
+        "decodedChannels": 1,
+        "decodedFrames": 6000,
+        "decodedRate": 48000,
+        "decodedSHA256": "4572fd6501704f266307939bdaef82cd57f48b9bb97766e7d03b33f9970d482c",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 6000,
+        "encodedBytes": 61945,
+        "encodedChannels": 1,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "23b0a3b14e06f4586c4abbf6ac8f57aa6a37b090dd1acda24302a73aa5402982",
+        "manualTrimFrames": 0,
+        "source": {
+          "channels": 1,
+          "endian": "little",
+          "frames": 6000,
+          "interleaved": true,
+          "sampleFormat": "float32",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 24000,
+        "sourceSHA256": "cad6175ab5076658ab795b5b3de7333c6cf983d0709538ccc1dad0e0a893c552",
+        "sourceUnchanged": true,
+        "packetTimeline": null
+      },
+      "name": "append-right",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9977873184210051,
+      "measurement": {
+        "decodedChannels": 2,
+        "decodedFrames": 11025,
+        "decodedRate": 44100,
+        "decodedSHA256": "ee91a0b358dd11cb1f58b2366d8d7210bd6b9d40ed2e3ba8f3c3b60dcc7eb7a9",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 11025,
+        "encodedBytes": 59306,
+        "encodedChannels": 2,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 44100,
+        "encodedSHA256": "9bc33ae72a03c16efc3edea071e85639e90a0b340fc608d4079e6e978ecae66c",
+        "manualTrimFrames": 0,
+        "source": {
+          "channels": 2,
+          "endian": "little",
+          "frames": 11025,
+          "interleaved": false,
+          "sampleFormat": "int16",
+          "sampleRate": 44100
+        },
+        "sourceBytes": 44100,
+        "sourceSHA256": "2444d4e5e8227ea22704c6d2ecb230f05a9e1b75d64154bc9ecfcc0452975b92",
+        "sourceUnchanged": true,
+        "packetTimeline": null
+      },
+      "name": "route-stereo-int16-planar",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9984509670344262,
+      "measurement": {
+        "decodedChannels": 2,
+        "decodedFrames": 8000,
+        "decodedRate": 32000,
+        "decodedSHA256": "b26722a8152c205cfb61e1126e960f571ea47e7e9711dacee75b305b01d04916",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 8000,
+        "encodedBytes": 46060,
+        "encodedChannels": 2,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 32000,
+        "encodedSHA256": "1c2e1a40452ab06a0195a336fcff1a47e37283db6bf9ab1f237896fbee235df9",
+        "manualTrimFrames": 0,
+        "source": {
+          "channels": 2,
+          "endian": "little",
+          "frames": 8000,
+          "interleaved": false,
+          "sampleFormat": "float32",
+          "sampleRate": 32000
+        },
+        "sourceBytes": 64000,
+        "sourceSHA256": "725f53b6f80421a64e1b6c7fe1855306e224d4f8a883f98d01f953f6febffd6d",
+        "sourceUnchanged": true,
+        "packetTimeline": null
+      },
+      "name": "route-stereo-float-planar",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "correlation": 0.9990758263070868,
+      "measurement": {
+        "decodedChannels": 2,
+        "decodedFrames": 12000,
+        "decodedRate": 48000,
+        "decodedSHA256": "c70e87086fa430c062b33ea4530972453cebdda182f66ea8317f7cbe72cbc161",
+        "decodedSampleFormat": "float32-little-endian-frame-interleaved",
+        "decoderReportedFrames": 12000,
+        "encodedBytes": 63439,
+        "encodedChannels": 2,
+        "encodedFormatID": 1633772320,
+        "encodedRate": 48000,
+        "encodedSHA256": "4a7ecacf28b2faa759f3ba20057f99dc4594618fb1853950bed469d40878cbc0",
+        "manualTrimFrames": 0,
+        "source": {
+          "channels": 2,
+          "endian": "little",
+          "frames": 12000,
+          "interleaved": true,
+          "sampleFormat": "int16",
+          "sampleRate": 48000
+        },
+        "sourceBytes": 48000,
+        "sourceSHA256": "461dbbabfe3abbcc8fa687d9538014155b74d1c4cfb5106118668146e0c5d59b",
+        "sourceUnchanged": true,
+        "packetTimeline": null
+      },
+      "name": "route-stereo-int16-interleaved",
+      "outcome": "measured-candidate",
+      "signalLagFrames": 0,
+      "sourceRetained": true
+    },
+    {
+      "errorCode": 1,
+      "errorDomain": "ProbeCodec.UnsupportedPCM",
+      "errorStage": "validate-source",
+      "name": "unsupported-channels",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    },
+    {
+      "errorCode": -66567,
+      "errorDomain": "com.apple.coreaudio.avfaudio",
+      "errorStage": "write-AAC-buffer",
+      "name": "unsupported-encoder-rate",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    },
+    {
+      "errorCode": 3,
+      "errorDomain": "VoiceProbe.ProbeError",
+      "errorStage": "read-source-PCM",
+      "name": "nonfinite-source",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    },
+    {
+      "errorCode": 516,
+      "errorDomain": "NSCocoaErrorDomain",
+      "errorStage": "create-candidate-directory",
+      "name": "destination-obstructed",
+      "outcome": "expected-hold-source-retained",
+      "sourceRetained": true
+    }
+  ],
+  "chronologicalBoundaryPassed": true,
+  "speechQuality": "not-run; synthetic signal only",
+  "version": 1,
+  "environment": "watchOS 26.1 simulator AVFoundation",
+  "packetTimelineNullMeans": "unknown/not available, never zero"
+}

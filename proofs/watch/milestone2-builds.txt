@@ -1,0 +1,5 @@
+Xcode 27.1 (27A9275); Swift 6.4 compiler, Swift 6 language mode; watchOS minimum 26.0
+Unsigned generic watchOS SDK 27.0: BUILD SUCCEEDED
+Unsigned generic watchSimulator SDK 27.0: BUILD SUCCEEDED
+No compiler warnings/errors in either build log.
+No signing, physical install or physical launch performed.

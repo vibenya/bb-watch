@@ -4,7 +4,20 @@ import SwiftUI
     @WKApplicationDelegateAdaptor(ProbeApplicationDelegate.self) var delegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = ProbeModel.shared
-    init() { _ = BackgroundProbe.shared }
+    init() {
+        _ = BackgroundProbe.shared
+        #if targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--codec-fixtures") {
+            DispatchQueue(label: "voiceprobe.codec.lab").async {
+                let root = URL.applicationSupportDirectory.appendingPathComponent("NativePhase0/Codec-" + UUID().uuidString)
+                do { _ = try CodecFixtures.run(root: root) }
+                catch {
+                    try? DurableFile.save(["outcome": "fixture-driver-failed", "errorDomain": (error as NSError).domain, "errorCode": String((error as NSError).code)], to: root.appendingPathComponent("driver-error.json"))
+                }
+            }
+        }
+        #endif
+    }
     var body: some Scene {
         WindowGroup {
             ProbeView(model: model)

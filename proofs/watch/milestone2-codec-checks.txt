@@ -1,0 +1,18 @@
+Building for debugging...
+[1 / 9]
+[2 / 8] ProbeCodec
+[5 / 11] ProbeCodec
+[8 / 11] ProbeCodec
+[11 / 12] codec-checks-product
+Build complete! (1,81 secs)
+short-mono: measured-candidate
+append-left: measured-candidate
+append-right: measured-candidate
+route-stereo-int16-planar: measured-candidate
+route-stereo-float-planar: measured-candidate
+route-stereo-int16-interleaved: measured-candidate
+unsupported-channels: expected-hold-source-retained
+unsupported-encoder-rate: expected-hold-source-retained
+nonfinite-source: expected-hold-source-retained
+destination-obstructed: expected-hold-source-retained
+PASS native AAC-LC: six decoded candidates, four retained-source failure cases, chronological append marker

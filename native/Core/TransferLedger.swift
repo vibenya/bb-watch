@@ -50,9 +50,13 @@ public final class TransferLedger {
         catch { blocked = true; throw error }
     }
     public static func hash(_ bytes: Data) -> String { SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined() }
-    public func plan(body: Data, endpoint: URL, method: String) throws -> TransferRecord {
+    public func plan(body: Data, endpoint: URL, method: String, requestID: UUID = UUID()) throws -> TransferRecord {
         guard !blocked, ["POST", "PUT"].contains(method), body.count <= 1024 * 1024 else { throw ProbeError.invalid }
-        let id = UUID(), name = UUID().uuidString + ".body"
+        if let existing = records.first(where: { $0.id == requestID }) {
+            guard existing.endpoint == endpoint, existing.method == method, existing.sha256 == Self.hash(body) else { throw ProbeError.invalid }
+            return existing // Invocation retries preserve uncertainty; caller must not create another OS task.
+        }
+        let id = requestID, name = UUID().uuidString + ".body"
         try DurableFile.write(body, to: root.appendingPathComponent(name))
         let record = TransferRecord(id: id, endpoint: endpoint, method: method, filename: name, sha256: Self.hash(body), phase: "planned")
         try commit(records + [record]); return record

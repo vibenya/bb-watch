@@ -1,3 +1,5 @@
 .build/
 DerivedData/
 VoiceProbe.xcodeproj/
+DerivedDataSimulator/
+__pycache__/

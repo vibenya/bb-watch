@@ -1,0 +1,67 @@
+{
+  "environment": "isolated watchOS simulator, real background URLSession",
+  "hardware_G4": "NOT RUN",
+  "cases": [
+    {
+      "case": "completion",
+      "durable_plan_observed": true,
+      "sink_arrived": false,
+      "phase": "observed",
+      "http_status": null,
+      "error_code": -1,
+      "sink_requests": 0,
+      "body_retained": true,
+      "body_sha256": "1006151669c73d95db4b338a34ebe0f5423d23a926b9887ce7d36869d2d73aac",
+      "result": "unresolved or native error; not an acceptance proof"
+    }
+  ],
+  "events": [
+    {
+      "stage": "session-created"
+    },
+    {
+      "stage": "getAllTasks",
+      "value": 0
+    },
+    {
+      "hash": "1006151669c73d95db4b338a34ebe0f5423d23a926b9887ce7d36869d2d73aac",
+      "stage": "task-created-attached",
+      "value": 31
+    },
+    {
+      "stage": "task-resumed"
+    },
+    {
+      "domain": "NSURLErrorDomain",
+      "stage": "delegate-complete"
+    },
+    {
+      "domain": "NSURLErrorDomain",
+      "stage": "delegate-error",
+      "value": -1
+    },
+    {
+      "stage": "observation-durable"
+    },
+    {
+      "stage": "session-created"
+    },
+    {
+      "stage": "getAllTasks",
+      "value": 0
+    }
+  ],
+  "nativeFailure": {
+    "domain": "NSURLErrorDomain",
+    "code": -1,
+    "daemonErrors": [
+      "NSCocoaErrorDomain 4099: connection to com.apple.nsurlsessiond invalidated",
+      "NSCocoaErrorDomain 4097: connection to service named com.apple.nsurlsessiond",
+      "failed to create a background NSURLSessionUploadTask, as remote session is unavailable"
+    ]
+  },
+  "terminationAfterIntake": "NOT RUN: no native request reached sink",
+  "http200": "NOT OBSERVED",
+  "refreshCallbacks": "NOT OBSERVED",
+  "privacy": "Task/request/process/simulator IDs, paths and timestamps omitted; private originals retained."
+}

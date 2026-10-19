@@ -1,0 +1,8 @@
+Building for debugging...
+[1 / 1]
+Build complete! (0,40 secs)
+PASS capture: first frame, short stop, same-draft append, late input, atomic enqueue, relaunch, crash mark, blocked-write readback
+PASS transfer ledger: task adoption, orphan rejection, missing task ambiguity, HTTP observation retains source
+PASS actual child SIGKILL: capture prefix + interruption mark; committed enqueue remains noneditable
+PASS failed transfer observation retained across finish/readback failure, then persisted without replay
+PASS durable fixture invocation identity: same request remains uncertain; conflicting body rejected

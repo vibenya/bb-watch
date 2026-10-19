@@ -10,7 +10,7 @@ From the repository root:
 ```sh
 xcodegen generate --spec native/project.yml
 swift run --package-path native probe-checks
-python3 native/scripts/codec_probe.py
+swift run --package-path native codec-checks
 xcodebuild -project native/VoiceProbe.xcodeproj -scheme VoiceProbe \
   -sdk watchos -destination 'generic/platform=watchOS' \
   -derivedDataPath native/DerivedData \
@@ -95,10 +95,11 @@ OS budget is released even on this unresolved path, never called durable success
 never a receipt. No source cleanup exists.
 
 No endpoint is configured by default. `scripts/fixture_server.py` binds only an
-OS-assigned loopback port and prints its URL after binding. For a future authorized
-simulator window, set `ProbeLoopbackFixtureURL` in the generated probe Info.plist
-source to that exact URL and rebuild. The optional **Fixture upload** button sends
-only fixed synthetic bytes. The transport class rejects non-loopback URLs.
+OS-assigned loopback port and prints its URL after binding. During an authorized simulator window, `simulator_transport.py` starts the sink
+and invokes the simulator-only `--fixture-upload <URL> <request-ID>` entry.
+Repeated invocation IDs never create a new task. The optional **Fixture upload**
+button is available only with an explicitly configured `ProbeLoopbackFixtureURL`
+and sends only fixed synthetic bytes. The transport class rejects non-loopback URLs.
 This sink is not the plugin protocol and its response proves no durable audio
 acceptance. A physical watch cannot reach the Mac through its own loopback:
 the lead must hand off a dedicated authenticated fixture origin and adapt the
@@ -108,15 +109,43 @@ Apple documents OS deferral and user-force-quit limitations. No wake deadline,
 LTE completion, taskDescription persistence, upload response delivery or complete
 multi-step declare/part/seal/status chain is claimed from compilation.
 
-## Offline codec probe
+## Native offline codec candidate
 
-`codec_probe.py` generates short mono and stereo PCM16 tones with ordered
-frequency boundaries, retains WAV originals, encodes separate AAC M4A candidates
-and decodes to PCM16 with Apple's `afconvert`. It checks original hashes, playable
-frames/rate/channels and waveform correlation. Explicit AAC rate is necessary;
-the tool's implicit default changed the rate in the first exploratory run.
-This is a host codec experiment, not a watch encoder or RU/EN speech-quality gate.
-It is not connected to capture, the proposed shared schema or transport.
+`Codec/CandidateCodec.swift` uses AVFoundation to create a separate AAC-LC M4A,
+close it, decode it to float32, and persist measured source/encoded/decoded hashes,
+formats and actual decoded frames. Input is read-only little-endian float32 or
+int16, planar or interleaved, at its own rate. Unsupported input/encoder/filesystem
+failures retain source and never publish a completed measurement. Failed partial
+candidates remain unreferenced; no candidate or source cleanup is implemented.
+No codec is connected to capture, Send, receipts or the proposed wire.
 
-See [Phase 0 evidence](../proofs/watch/phase0.md) and
+`CodecFixtures` runs the same six synthetic sources and four real failure cases on
+host and simulator. It checks independent original bytes, per-part frame/rate/channel
+mapping, signal correlation and chronological frequency markers around an append.
+This is not speech/ASR quality evidence or a storage-budget result. Tiny candidates
+can be larger than source. Host AudioToolbox packet-table metadata is optional;
+watchOS does not expose that module, and unknown priming/padding is not treated as
+zero. AVAudioFile returns its playable frame timeline; no manual priming trim is
+applied. Production mapping/receipt policy is still open.
+
+For a separately authorized window, build the simulator target, install only the
+isolated probe on the owned simulator, then run these drivers. `OWNED_SIM_ID_FILE`
+contains the privately recorded simulator identity; `PRIVATE_PROOFS` is outside the
+repository. These commands do not grant a window or boot/install anything:
+
+```sh
+python3 native/scripts/simulator_transport.py \
+  --simulator-id-file "$OWNED_SIM_ID_FILE" --artifacts "$PRIVATE_PROOFS/transport"
+python3 native/scripts/simulator_codec.py \
+  --simulator-id-file "$OWNED_SIM_ID_FILE" --artifacts "$PRIVATE_PROOFS/codec"
+```
+
+Transport uses native background URLSession, not a foreground upload workaround.
+The measured simulator failed before network intake because `nsurlsessiond` was
+unavailable. Source and the native error observation survived ordinary relaunch;
+no upload, receipt or WatchKit refresh success is claimed. Both drivers terminate
+their app; the coordinator shuts down only the owned simulator afterwards.
+
+See [current bounded milestone](../proofs/watch/milestone1-2.md),
+[Phase 0 evidence](../proofs/watch/phase0.md) and
 [physical acceptance steps](../proofs/watch/hardware-acceptance.md).

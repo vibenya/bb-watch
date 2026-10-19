@@ -16,6 +16,7 @@ targets:
     platform: watchOS
     sources:
       - Core
+      - Codec
       - WatchProbe
     settings:
       base:
