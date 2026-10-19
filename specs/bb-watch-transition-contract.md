@@ -46,7 +46,7 @@ in §13 supplement product acceptance P01–P22.
 | Fence | BB's durable record that an identity is abandoned. It counts only once BB acknowledges it; a queued fence proves nothing. |
 | Known-unavailable | BB has reported (list, link check or intake rejection) that a thread is deleted or not authorized for this connection. Unknown or stale is not known-unavailable. |
 | Issue | An outbox item or retained artefact the user may need to know about or act on (§7.3). |
-| W-restore, W-start, W-seal, W-finalize, W-drain, W-stall | Bounds for transient states, draining a write owner, and input stall; values come from gate G6. |
+| W-restore, W-start, W-seal, W-finalize, W-drain, W-stall, W-wait | Bounds for transient states, draining a write owner, input stall and unreceived-item visibility; values come from gate G6. |
 
 ## 2. Invariants
 
@@ -78,19 +78,21 @@ right; when full, the oldest bars leave on the left. Silence draws the flat
 baseline, never synthetic bars. Stopped shows the saved waveform static and
 dim; append continues after it. Stopped time adds no silent audio.
 
-The **issues indicator** (§7.3) has one fixed position in the input region,
-outside the X / center / Enter slots and the lower row. It is visible in every
+The **issues indicator** (§7.3) occupies the top-leading recorder toolbar slot,
+opposite the system clock, outside the X / center / Enter slots and the lower
+row. Its neutral waiting dot or outlined exclamation-circle sits in the same
+reserved hit region; it never borrows the thread glyph. It is visible in every
 state except `restoring` and `store-blocked`, and inert during transient states.
 
 | State | Entered when | Left | Center | Right | Lower row | Entry haptic · VO |
 |---|---|---|---|---|---|---|
 | `restoring` | Launch or relaunch | — | inert | — | inert | — |
-| `store-blocked` | Local store or write ownership cannot be established (T-03, T-38) | — | neutral Retry glyph `Retry` (hint: saved recordings unavailable); never captures | — | inert | failure · alert A-STORE or A-STORE-REOPEN |
+| `store-blocked` | Local store or write ownership cannot be established (T-03, T-38) | — | neutral Retry glyph `Retry` (hint: saved recordings unavailable); never captures | — | inert | failure · A-STORE, A-STORE-REOPEN or repeated deterministic failure A-STORE-HELP |
 | `ready` | Current context has no draft | — | lime mic `Record` | — | active | — |
 | `ready-blocked` | Mic permission denied or restricted | — | neutral slashed mic `Record` (hint: microphone off) | — | active | — |
 | `starting(new)` | Record accepted | — | lime mic, pressed, inert; no waveform | — | inert | — |
 | `starting(append)` | REC accepted | X inert | red REC pressed, inert | Enter inert | inert | — |
-| `live` | First real input buffer | X `Discard recording` | square `Stop and save` | lime curved Enter `Send recording` | active | start · `Recording` |
+| `live` | First real input buffer | X `Discard recording` | square `Stop and save` | lime curved Enter `Send recording` | active | new: start · `Recording`; append: distinct append haptic · `Continuing recording` |
 | `stopping` | Stop, X, context leave, unexpected stop | inert | inert | inert | inert | — |
 | `stopped` | Seal durable, usable audio present | X `Discard recording` | red REC `Continue recording` | lime curved Enter `Send recording` | active | stop · `Stopped` (user); failure · `Recording stopped` (unexpected) |
 | `finalizing` | Enter accepted | inert | inert | Enter shows brief progress, inert | inert | — |
@@ -99,8 +101,9 @@ Transient states (`restoring` ≤ W-restore, `starting` ≤ W-start, `stopping` 
 W-seal, `finalizing` ≤ W-finalize, each plus at most W-drain) ignore every
 control, indicator and lower-row tap. If one lasts long it stays visibly inert,
 with no waveform, timer or percentage, and leaves by the bounded exits below.
-`store-blocked` is not a dead end: its center Retry stays available after the
-alert is dismissed.
+`store-blocked` retains its center Retry after the alert is dismissed. Retry is
+not a promise to repair corruption: deterministic whole-store failure keeps input
+blocked pending developer-assisted, non-destructive recovery (LIFE-5).
 
 ## 4. Transitions
 
@@ -108,14 +111,14 @@ alert is dismissed.
 |---|---|---|---|---|
 | T-01 | restoring | local recovery complete | `stopped` if current context has a draft, else `ready`/`ready-blocked` | never `live`; outbox reconciliation runs afterwards in the background; deferred link/quick-start re-evaluated |
 | T-02 | restoring | one draft or item fails validation | restoring continues | that artefact quarantined as E10; others restore normally |
-| T-03 | restoring | store unreadable, ownership not established, or W-restore exceeded | store-blocked | A-STORE; nothing reset or deleted |
-| T-04 | store-blocked | center Retry, or `Try again` in A-STORE [previous recovery drained within W-drain] | restoring | a new local recovery; never overlaps the previous one; no capture |
+| T-03 | restoring | store unreadable, ownership not established, or W-restore exceeded | store-blocked | A-STORE (A-STORE-HELP after repeated deterministic failure); nothing reset or deleted |
+| T-04 | store-blocked | center Retry, or `Try again` in A-STORE/A-STORE-HELP [previous recovery drained within W-drain] | restoring | a new local recovery; never overlaps the previous one; no capture |
 | T-04b | store-blocked | Retry [previous recovery or write owner not drained within W-drain] | store-blocked | A-STORE-REOPEN; next launch starts with no prior owner |
 | T-05 | ready | Record [permission granted, space ≥ reserve] | starting(new) | — |
 | T-06 | ready | Record [permission not yet asked] | system prompt | grant → starting(new) (DEF-07); deny → `ready-blocked`, no extra alert |
 | T-07 | ready-blocked | Record | ready-blocked | A-MIC-OFF |
 | T-08 | ready, stopped | Record/REC [space < reserve] | unchanged | A-STORAGE-START |
-| T-09 | starting | first real input buffer | live | start haptic; new draft (new) or new segment of the same draft (append) |
+| T-09 | starting | first real input buffer | live | new: start haptic and Recording; append: distinct append haptic and Continuing recording; new draft or new segment of the same draft |
 | T-10 | starting | activation error, or no buffer within W-start | prior state, unchanged | failure haptic; A-MIC-UNAVAILABLE; no empty draft; attempt ended |
 | T-11 | starting | app moves to the background (Crown press, app switch) | prior state, unchanged | no alert; attempt ended; capture never begins in the background. Wrist down or Always On while the app stays frontmost is not this event (G3, TG10) |
 | T-11b | any | a callback (first buffer, activation, seal) of an ended attempt or drained owner arrives | unchanged | ignored; any input it opened is released; no haptic, waveform or draft |
@@ -124,15 +127,15 @@ alert is dismissed.
 | T-14 | live | X | stopping → stopped + D-DISCARD | audio sealed before the dialog |
 | T-15 | live | OS interruption; input stall ≥ W-stall; capture lost in the background (G3) | stopping → stopped | incompleteness mark at the boundary; failure haptic; no alert; no automatic restart |
 | T-16 | live | free space reaches reserve | stopping → stopped | A-STORAGE-STOP; no mark (a deliberate safe stop, audio complete to here) |
-| T-17 | live, stopping | write/checkpoint error, or seal exceeds W-seal [usable audio remains] | stopped with committed audio, after the seal writer is drained | incompleteness mark; A-SAVE-PARTIAL; unsealed tail quarantined; a pending switch, link or pairing is **not** applied |
-| T-18 | live, stopping | same [no usable audio] | `ready` (no draft), after drain | A-REC-FAILED; raw data quarantined; pending switch/link/pairing not applied |
+| T-17 | live, stopping | write/checkpoint error, or seal exceeds W-seal [usable audio remains] | stopped with committed audio, after the seal writer is drained | incompleteness mark; A-SAVE-PARTIAL; unsealed tail quarantined; pending switch/link/pairing/discard is canceled; only the failure alert appears; X must be tapped again for discard |
+| T-18 | live, stopping | same [no usable audio] | `ready` (no draft), after drain | A-REC-FAILED; raw data quarantined; pending switch/link/pairing/discard canceled; only the failure alert, never D-DISCARD |
 | T-19 | stopped | REC [permission, space] | starting(append) | — |
 | T-20 | stopped | REC [permission denied or restricted] | stopped, unchanged | A-MIC-OFF; X and Enter stay usable |
 | T-21 | stopped | Enter [context not known-unavailable] | finalizing | — |
 | T-22 | live, stopped | Enter [context known-unavailable] | (live → stopping →) stopped + D-UNAVAILABLE | `Send to BB` → finalizing into this connection's BB context; `Cancel` → stopped |
 | T-23 | stopped | X | stopped + D-DISCARD | `Discard` → `ready` (draft deleted); `Cancel`/dismiss → stopped |
 | T-24 | finalizing | enqueue committed | ready (same context) | queued haptic; VO `Queued` |
-| T-25 | finalizing | commit write fails or W-finalize passes after the last segment sealed | commit writer drained, durable state read back: committed → as T-24; not committed → stopped, draft complete | not committed: failure haptic, A-NOT-QUEUED. A late commit can never follow an editable draft |
+| T-25 | finalizing | commit write fails or W-finalize passes after the last segment sealed | commit writer drained, durable state read back: committed → as T-24; not committed → stopped, draft complete | not committed: failure haptic, A-NOT-QUEUED (A-ENQUEUE-SPACE for a known space error). A late commit can never follow an editable draft |
 | T-26 | finalizing | sealing the last segment fails or times out [usable audio remains] | stopped with committed audio, after drain | incompleteness mark; failure haptic; A-NOT-QUEUED-PARTIAL |
 | T-27 | finalizing | same [no usable audio] | ready, after drain | A-REC-FAILED; raw data quarantined |
 | T-28 | ready, ready-blocked, live, stopped | tap lower row | same + Threads sheet | live capture continues under the sheet |
@@ -178,17 +181,21 @@ Issues, item dialogs) does not.
 
 One row: activity glyph, actual title (or `BB`), chevron. Never transport state.
 
-| Glyph | Source fact | Notes |
-|---|---|---|
-| routing | Context is `BB` | No activity; no peek chevron |
-| idle | BB reports idle | Exact BB state mapping is part of TG2 |
-| working | BB reports a running turn | Motion only when allowed (§11) |
-| question | BB reports a pending question/interaction | No answer controls; voice reply semantics TG7 |
-| done | BB reports the latest turn completed | Only from fresh BB data |
-| failed | BB reports the latest turn failed | Not red (DEF-10); not a delivery failure |
-| unknown | No fresh BB state (TG2 freshness window), unreachable, or no source | Neutral; never Done |
-| unavailable | Known-unavailable | Title dimmed; context kept, not replaced |
-| not paired | No active connection | `BB` with dimmed routing glyph; VO adds "not paired" |
+| Glyph | Source fact | Shape | Notes |
+|---|---|---|---|
+| routing | Context is `BB` | branch diagram | No activity; no peek expander |
+| idle | BB reports idle | small horizontal dash | Exact BB state mapping is part of TG2 |
+| working | BB reports a running turn | three equal bars, no progress ring | Motion only when allowed (§11) |
+| question | BB reports a pending question/interaction | question bubble | No answer controls; voice reply semantics TG7 |
+| done | BB reports the latest turn completed | flag, never a checkmark | Only from fresh BB data |
+| failed | BB reports the latest turn failed | warning triangle, neutral | Not red (DEF-10); not a delivery failure |
+| unknown | No fresh BB state (TG2 freshness window), unreachable, or no source | outlined diamond | Neutral; never Done |
+| unavailable | Known-unavailable | slashed thread bubble | Title dimmed; context kept, not replaced |
+| not paired | No active connection | dim branch diagram | `BB` with dimmed routing glyph; VO adds "not paired" |
+
+Thread glyphs never use input transient-spinner shapes. The checkmark is reserved
+for current-context selection, not Done. The older v8 raster ring/check shapes
+are illustrative; this shape table and the [annotated companion](../docs/design/voice-terminal-v8-delivery.svg) take precedence.
 
 The current context persists per connection across Enter, relaunch and
 quick-start until the user picks another or applies a link. A route or receipt
@@ -199,7 +206,7 @@ never changes it. A known-unavailable current thread stays current until changed
 1. Pairing row, only when needed: `Pair with BB` (unpaired) or `Pair again`
    (credential rejected).
 2. `Issues` row with count, only while issues exist (§7.3).
-3. Current context row: glyph, title, check; chevron for a thread.
+3. Current context row: glyph, title, selection check; down/up expander for a thread.
 4. Other threads: authorized recent threads in shared Chats order. A context that
    holds a draft is always listed, marked with a small mic glyph, even when not
    recent, hidden or unavailable.
@@ -211,9 +218,9 @@ progress indicator; the `BB` row stays usable.
 
 ### 6.3 Peek
 
-The current thread's chevron expands inline: a bounded original BB excerpt and
+The current thread's down/up expander toggles inline: a bounded original BB excerpt and
 its status glyph. Stale data carries `Not current`. Without an activity source
-(TG2) the chevron is absent. No actions, no reader route. Hidden in Always On.
+(TG2) the expander is absent. No actions, no reader route. Hidden in Always On.
 
 ### 6.4 Switching with audio
 
@@ -229,7 +236,8 @@ its status glyph. Stale data carries `Not current`. Without an activity source
 ### 7.1 Item phases (watch view)
 
 `queued` → `transferring` → `received` (the item leaves the watch's view).
-Side phases: `waiting` (an attempt could not reach BB), `held` (needs a user
+Side phases: `waiting` (an attempt could not reach BB, or no complete receipt
+within W-wait since enqueue even if the OS deferred every attempt), `held` (needs a user
 decision or a BB-side change), `unconfirmed` (a seal may have occurred and no
 receipt can be obtained automatically under the active connection),
 `not-paired` (Enter while unpaired), `frozen` (previous connection),
@@ -250,7 +258,7 @@ receipt can be obtained automatically under the active connection),
 
 ### 7.3 Discoverability without history
 
-- DSC-1 **Issues indicator** in the input region, fixed position (§3), visible
+- DSC-1 **Issues indicator** in the top-leading recorder toolbar slot (§3), visible
   during capture too. *Attention* variant (exclamation shape, non-red, non-lime)
   if any issue needs a decision; *waiting* variant (small neutral dot) if only
   E1/E8 exist. Tapping it opens the Threads sheet with Issues expanded (T-29).
@@ -264,12 +272,17 @@ receipt can be obtained automatically under the active connection),
 - DSC-4 Issues from every context of the active connection appear regardless of
   the current context or recent list; a frozen connection is one entry.
 - DSC-5 VoiceOver: indicator "Issues, <n>. Opens Threads."
-- DSC-6 Nothing else: no list of received or in-flight items, no success state,
-  no automatic alert.
+- DSC-6 Nothing else: no list of received or ordinary in-flight items, no success
+  state, no automatic alert. Absence of an indicator is never a receipt claim.
+- DSC-7 W-wait runs from durable enqueue, independent of network attempts or
+  transfer progress. Persist its basis; after suspension/relaunch re-evaluate
+  elapsed time before presenting controls. No receipt by W-wait makes E1 visible
+  at the next OS-granted UI update, including during a long active transfer.
+  It clears only by the existing receipt/delete rules. No wake deadline is promised.
 
 | Kind | Trigger | Variant | Reason | Actions | Clears when |
 |---|---|---|---|---|---|
-| E1 waiting | Attempt could not reach BB (no network, computer asleep, unreachable) | waiting | `Waiting for BB` | Delete | received; delete completed (§7.5) |
+| E1 waiting | Attempt could not reach BB, or no verified receipt within W-wait of enqueue (including OS-deferred or still-active transfer) | waiting | `Waiting for BB` | Delete | received; delete completed (§7.5) |
 | E2 pairing | Credential rejected | attention | `Pairing needed` | Pair again; Delete | same-identity repair resumes intake (TG5); delete completed |
 | E3 not paired | Enter while unpaired (staged), or an unpaired draft after pairing | attention | `Not paired` | unpaired: Pair with BB; paired: Send to BB (D-E9 wording); Delete | bound via D-PAIR-SEND or Send to BB; deleted |
 | E4 target | Definitive non-acceptance of the thread (TG4) | attention | `Thread unavailable` | Send to BB; Delete | replaced; deleted |
@@ -343,7 +356,9 @@ it, a target rejection offers Delete only.
 ## 8. Inbound links (gate TG1)
 
 Until TG1 passes, the app handles no inbound link and the release makes no link
-claim. A link carries at least a BB identity and an exact thread ID. A title in a
+claim. The legacy mic-starting bbwatch://record route is retired: reject it as
+A-LINK-BAD in 3.0; notification URLs can select context but never start capture.
+Configured quick-start is a separate explicit shortcut entry, not this URL. A link carries at least a BB identity and an exact thread ID. A title in a
 link is a display hint only and never selects. Actual payload, invocation paths
 and any invocation token are defined by TG1, not assumed here.
 
@@ -464,6 +479,12 @@ Fields follow architecture §4.2 as revised by gate G1b. Close changes nothing.
 - LIFE-3 After T-01 the recorder is usable at once; outbox reconciliation runs
   in the background and precedes any re-upload of an item.
 - LIFE-4 The app does not claim to know why it cold-started.
+- LIFE-5 Whole-store corruption that repeats after a drained Retry is an explicit
+  first-release limitation: remain store-blocked until developer-assisted recovery
+  preserves original audio, identity and receipt/order ledgers and establishes a
+  readable safe store. A-STORE-HELP states the limitation; Retry remains available.
+  No fresh empty store, automatic set-aside, uninstall or reset is a repair path.
+  Help is a native informational alert, not a new product surface or support page.
 
 ## 11. Presentation
 
@@ -471,9 +492,10 @@ Fields follow architecture §4.2 as revised by gate G1b. Close changes nothing.
 
 | Event | Haptic |
 |---|---|
-| First real input buffer (T-09) | start |
+| First real input buffer, new (T-09) | system start; VO Recording |
+| First real input buffer, append (T-09) | system retry, distinguishable from new capture; VO Continuing recording; distinguishability is TG-U |
 | User Stop sealed (T-12) | stop |
-| Enqueue committed (T-24) | queued: distinct from start, stop and failure; not "delivered" |
+| Enqueue committed (T-24) | system click; never success; queued only, not delivered; distinguishable from new/append/stop/failure in TG-U |
 | Start failure, unexpected stop, enqueue failure, store blocked | failure |
 | Item newly needs attention (DSC-2) | notification, never during capture |
 | Receipt, routing, refresh, context switch, sheet, peek | none |
@@ -497,7 +519,7 @@ not arriving. Peek excerpts and issue text are hidden; titles stay.
 - VoiceOver names: `Record`, `Stop and save`, `Continue recording`,
   `Send recording`, `Discard recording`, `Retry` (store-blocked); lower row: "<title or BB>, <glyph
   state>, Threads"; indicator per DSC-5. Announcements: `Recording`, `Stopped`,
-  `Recording stopped`, `Queued`.
+  `Recording stopped`, `Continuing recording`, `Queued`.
 - Red is not the only state signal: REC differs from the lime mic by glyph.
 - Largest Dynamic Type: titles truncate on one line in the lower row; the sheet
   scrolls with the Crown; the three controls stay reachable without scrolling.
@@ -518,6 +540,8 @@ destructive buttons use the system destructive style.
 | A-NOT-QUEUED | Not sent | Recording kept. | OK |
 | A-NOT-QUEUED-PARTIAL | Not sent | Recording kept. Some audio may be missing. | OK |
 | A-STORE | Can't open saved recordings | Recording is paused until they open. | Try again · OK |
+| A-STORE-HELP | Saved recordings unavailable | Recovery help is needed. Recordings are kept. | Try again · OK |
+| A-ENQUEUE-SPACE | Watch storage full | Recording kept. | OK |
 | A-STORE-REOPEN | Can't open saved recordings | Reopen BB Watch. | OK |
 | A-LINK-BAD | Can't open link | — | OK |
 | A-LINK-UNPAIRED | Pair with BB first | — | OK |
@@ -562,11 +586,11 @@ scenario needs recorded device/integration evidence; an open or failed core gate
 | CAP-10 | P02 | `stopped`, permission revoked since | tap REC | A-MIC-OFF; `stopped` unchanged; Enter and X still work | — |
 | CAP-11 | P01 | `starting` ended by T-10 or T-11 | the old attempt's first buffer arrives late | ignored; input released; no waveform, haptic or draft | — |
 | CAP-12 | P01 | `starting` | wrist lowered while the app stays frontmost | not treated as background; `live` on first buffer or T-10 at W-start | G3, TG10 |
-| CAP-13 | P03 | `stopped` in A, quick-start configured | quick-start | append to A's draft; visible context A and its waveform; start haptic only on the first real buffer | TG9 |
+| CAP-13 | P03 | `stopped` in A, quick-start configured | quick-start | append to A's draft; visible context A and its waveform; distinct append haptic and Continuing recording announcement only on first real buffer | TG9 |
 | SND-01 | P04 | `live` | Enter | capture stops; one item with all audio; `ready` in the same context; queued haptic; no visible success | — |
 | SND-02 | P04 | `stopped` | Enter | same as SND-01 | — |
 | SND-03 | P05 | `finalizing` | crash at any instant | after relaunch exactly one of {draft `stopped`, outbox item} holds the usable audio | — |
-| SND-04 | P05 | `finalizing` after the last segment sealed | outbox write fails (e.g. no space) or W-finalize passes before commit | `stopped`, draft complete, A-NOT-QUEUED, failure haptic | G6 |
+| SND-04 | P05 | `finalizing` after the last segment sealed | outbox write fails (e.g. no space) or W-finalize passes before commit | `stopped` after writer drain/readback, draft complete, A-NOT-QUEUED (A-ENQUEUE-SPACE for known space error), failure haptic | G6 |
 | SND-05 | P05 | `live` | Enter; sealing the last segment fails | `stopped` with committed audio, A-NOT-QUEUED-PARTIAL; with no usable audio `ready` and A-REC-FAILED | — |
 | SND-06 | P06 | `ready` after Enter, item not received | tap Record | new capture in the same context; earlier item unaffected | — |
 | SND-07 | P09 | context thread with glyph idle | Enter; upload completes | glyph stays idle until BB reports the thread working | TG2 |
@@ -638,7 +662,7 @@ scenario needs recorded device/integration evidence; an open or failed core gate
 
 | ID | P | Given | When | Then | Gate |
 |---|---|---|---|---|---|
-| OUT-01 | P11 | network off | Enter items in A, B and BB | all kept; after failed attempts waiting indicator; sheet `Issues 3`, each `Waiting for BB` | — |
+| OUT-01 | P11 | network off | Enter items in A, B and BB | all kept; failed attempt or W-wait without receipt (even with no attempt) gives waiting indicator; sheet `Issues 3`, each `Waiting for BB` | — |
 | OUT-02 | P11 | OUT-01 | network returns | items deliver without another Enter; indicator and row disappear; no success list | G4 |
 | OUT-03 | P12 | seal response lost | reconcile | same recording ID; one job; no duplicate | G4 |
 | OUT-04 | P19 | credential rejected | — | E2 items, attention indicator, `Pair again`; capture unaffected | — |
@@ -656,6 +680,7 @@ scenario needs recorded device/integration evidence; an open or failed core gate
 | OUT-16 | P13 | item needs attention while `live` | — | indicator switches to attention; no haptic or alert during capture; one notification haptic after stop | — |
 | OUT-17 | P11 | items pending | relaunch | recorder usable after local restore; statuses reconciled before any re-upload; same IDs; no Enter | G4 |
 | OUT-18 | P18 | item received | relaunch | no re-upload (ledger); local audio reclaimed only per RET-3 | G6 |
+| OUT-19 | P11 | item enqueued, OS defers all attempts | W-wait elapses; next permitted UI update/relaunch | waiting indicator and E1 despite no failed attempt; later verified receipt clears it | G6 |
 
 ### Setup, storage, interruption, lifecycle, presentation
 
@@ -681,6 +706,7 @@ scenario needs recorded device/integration evidence; an open or failed core gate
 | LIF-04 | P05 | `finalizing` | commit write passes W-finalize | writer drained and state read back: item committed → `ready`; not committed → `stopped` with A-NOT-QUEUED; never an editable draft that later also commits | G6 |
 | LIF-05 | P05 | `finalizing` or `stopping` | writer cannot be drained within W-drain | `store-blocked`, A-STORE-REOPEN, no editable draft; after relaunch exactly one of draft or item | G6 |
 | LIF-06 | P05 | `store-blocked`, A-STORE dismissed with OK | tap center Retry | new restore starts only after the previous one ended; no capture; success → `ready`/`stopped` | — |
+| LIF-07 | P05 | deterministic whole-store corruption persists after drained Retry | retry or relaunch | store-blocked and A-STORE-HELP; originals and ledgers kept; developer-assisted recovery required, no empty replacement or claimed ready | — |
 | INT-01 | P17 | `live` | phone call | `stopped`; prior audio kept; no resume after the call | TG11 |
 | INT-02 | P17 | `live` | wrist down 5 min | `live` throughout with all audio sealed | G3 |
 | INT-03 | P17 | `live` | Crown press, return | as INT-02 | G3 |
@@ -741,7 +767,7 @@ feature and its claims.
 | G1b | core | Remote admission of intake (architecture) | — |
 | G3 | core | Capture through wrist down, Crown press, other app (architecture) | T-15 if input actually stops; no standalone/wrist-down claim before proof |
 | G4 | core | Background declare/parts/seal/receipt chain (architecture) | No delivery-timing claim |
-| G6 | core | Values: storage reserve, W-restore, W-start, W-seal, W-finalize, W-drain, W-stall, part caps, reclamation bounds | — |
+| G6 | core | Values: storage reserve, W-restore, W-start, W-seal, W-finalize, W-drain, W-stall, W-wait, part caps, reclamation bounds | — |
 | TG13 | core | Manifest/wire fields for incompleteness marks and their boundaries, carried to BB | No claim that BB explains missing audio |
 | TG2 | core | Thread activity/excerpt source on the watch and its freshness window | `unknown` glyph when not fresh |
 | TG3 | core | Unbound routing intake and ordering contract | BLK-1 |

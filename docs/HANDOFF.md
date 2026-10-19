@@ -9,7 +9,7 @@ REC append after Stop; it does not verify runtime behavior.
 Only recorder and Threads are everyday watch surfaces. No recording-history,
 playback, delivery-detail, Reply/New/project/model pages. One lower component
 shows the chosen thread and its actual activity; input/transport recovery is
-separate. Read messages in BB/notifications; reply links reopen the same recorder.
+separate. Read messages in BB/notifications; reply links reopen the same recorder (gate TG1).
 The current code/build remains 0.2.0, not this contract. No clean rewrite,
 worktree, implementation, provider call, device build/install or runtime proof is
 implied by these documents. The earlier architecture needs a 3.0 update before

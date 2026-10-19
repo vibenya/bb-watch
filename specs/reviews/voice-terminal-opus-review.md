@@ -1,5 +1,10 @@
 # Voice terminal 3.0 — transition and error review
 
+**Historical consistency receipt:** pinned inputs below describe the initial
+3.0 packet. Subsequent bounded Fable corrections are evaluated in the
+[final Fable review](voice-terminal-v3-fable-final-review.md); its new hashes and
+verdict govern those changes. This receipt is not approval of later edits.
+
 19 October 2026. Documentation/design review by the dedicated transition/error
 designer. No implementation, build, device, provider, ASR, Jev or runtime call
 was made. Output: [transition/error contract](../bb-watch-transition-contract.md).

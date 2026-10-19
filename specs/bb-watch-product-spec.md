@@ -93,7 +93,8 @@ Ordinary launch restores context/draft with mic off. An explicitly configured
 quick-start starts or appends within the visible context after authorization /
 permission; during active capture it reveals that capture, never sends or starts
 a second mic. Appending a retained thought is deliberate behavior: the visible
-context and stopped waveform identify it, and actual capture gets its own haptic.
+context and stopped waveform identify it. Append gets a haptic distinct from
+fresh capture and a Continuing recording VoiceOver announcement on actual input.
 No custom second physical Action Button press is assumed proven.
 
 ## 4. The sole lower thread/context component
@@ -196,7 +197,10 @@ Normal UI remains two surfaces; exceptional short native recovery prompts may
 refer to the affected context. Older pending/failed operations must remain
 noticeable/actionable while a new context records; they cannot be overwritten by
 the latest operation or hidden in a context no longer in the recent list. A fixed
-input-owned issue indicator remains accessible during recording. It opens the
+input-owned issue indicator occupies the top-leading toolbar slot opposite the
+system clock and remains accessible during recording. No complete receipt within
+W-wait of enqueue makes waiting visible even if the OS never attempted transfer;
+re-evaluate at the next OS-granted UI update, not a promised wake deadline. It opens the
 same Threads sheet with a conditional Issues row expanded. Only exceptional
 items appear there; neither successful nor ordinarily progressing sends form
 a history. Rare issue/setup text is allowed inside that explicit recovery UI.
@@ -211,6 +215,11 @@ Check again reconciles its original ID. Deleting a local copy in this state
 warns both that unreceived audio may be lost and received audio may still send;
 it preserves the unknown ledger and ordering barrier. No blind Send again. New audio capture must not be held
 until slow network, ASR or an agent completes.
+
+Deterministic whole-store corruption is an explicit first-release limitation:
+input stays blocked pending developer-assisted recovery that preserves audio and
+identity/receipt/order ledgers. Retry is available, but no empty-store replacement
+or destructive reset is promised.
 
 App interruption or storage pressure stops/checkpoints; reactivation restores
 stopped/red REC, not automatic capture. Wrist-down and normal backgrounding alone

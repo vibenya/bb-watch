@@ -5,7 +5,8 @@
 Read the [product contract](specs/bb-watch-product-spec.md) and
 [transition/error contract](specs/bb-watch-transition-contract.md) together.
 [Current concept](docs/design/voice-terminal-v8.png) ·
-[generation brief](docs/design/voice-terminal-v8-prompt.md).
+[generation brief](docs/design/voice-terminal-v8-prompt.md) ·
+[delivery indicator annotation](docs/design/voice-terminal-v8-delivery.svg).
 The concept illustrates four states of two surfaces; it is not native geometry,
 HIG conformance or runtime evidence. The old Fable reviews cover earlier packets,
 not this one. Prior [design and iterations](specs/archive/design-before-voice-terminal-3.0.md)
@@ -68,23 +69,37 @@ glyph represents BB idle/working/question/done/failure only; unknown/stale is
 neutral. Upload/transcription/receipt/failure cannot replace this thread glyph.
 A recorded thought's local/transport exception is input-owned and separately
 accessible; it never fabricates thread Done or silently disappears. Its indicator
-has a fixed input-region position outside X/REC/Enter and the thread row, remains
+occupies the top-leading recorder toolbar slot opposite the system clock,
+outside X/REC/Enter and the thread row, remains
 visible during capture, and opens Threads with Issues expanded without stopping
-the microphone. It is inert during guarded transitions. Unreadable local storage
+the microphone. The slot uses a neutral dot for waiting and an outlined
+exclamation-circle for attention, with one stable hit region. It is inert during
+guarded transitions. No receipt within W-wait since enqueue shows waiting even
+if the OS deferred all attempts; update at the next permitted UI refresh, never
+a promised background wake. Absence of an indicator is never proof of delivery.
+Unreadable local storage
 blocks recording but retains an accessible Retry recovery control in the center
-slot; dismissing its alert must not strand the user.
+slot after alert dismissal. Retry does not guarantee repair of deterministic
+whole-store corruption: the first release honestly stays blocked pending
+developer-assisted recovery with audio and ledgers preserved, never an empty
+replacement store. The native recovery alert explains this limitation.
 
 For unbound routing show BB with a routing glyph, not Auto/New or a fake last
 thread. Remain in that context until an explicit selection or authorized link.
 No extra pinned chip, history row, receipt caption or model metadata underneath.
 Long titles use native truncation/accessibility and remain readable in Threads.
 
+Use the transition contract’s explicit glyph shapes: working is three bars,
+Done a flag, and a checkmark means current selection only. The v8 raster’s ring
+and Done check are superseded by this vocabulary and the annotated companion.
+Input progress and thread activity never share a shape family.
+
 ## Threads and return behavior
 
 Tap the one row → one sheet. Close X dismisses with no implicit selection,
 capture, send or delete. Another row selects a context and dismisses only after
 the old draft is safely stopped/checkpointed. The current row expands a short
-original BB excerpt inline; collapse/Close returns without another reader page.
+original BB excerpt inline using a down/up expander; collapse/Close returns without another reader page.
 BB routing is an explicit selectable context. A conditional Issues row exposes
 only actionable local/transfer exceptions, never a send history. No issue remains
 for ASR/routing/dispatch after the complete-audio receipt: full BB owns those. Exact thread state, retained-draft
@@ -102,7 +117,9 @@ ownership. Capture waveform is real level/timeline input, not a spinner. Stop
 freezes it, REC resumes append and enqueue resets to idle only at the durable
 boundary. Delayed callbacks cannot animate a different draft or pairing.
 
-Provide haptics/VoiceOver announcements on actual meaningful transitions; never
+New capture uses start; append uses a distinct retry haptic and Continuing
+recording VoiceOver announcement; queued uses click, never success. Validate
+these distinctions in TG-U. Provide feedback on actual meaningful transitions; never
 announce Recording, Sent or Done optimistically. No forced text-to-speech.
 Reduce Motion gives static/immediate equivalents. Always On remains truthful and
 does not run decorative animation. Native scalable text, contrast, hit targets,
