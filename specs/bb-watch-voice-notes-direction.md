@@ -14,7 +14,7 @@ New configuration with flattened project destinations as approved. Automatic
 routing below is a new direction, not permission to silently remove explicit
 target/model overrides.
 
-The primary layout is now the red recording control, then the current destination
+The primary layout is now the lime (`#D5FF00`) recording control, then the current destination
 or Auto, then scrollable history/status. It resembles a voice-notes recorder.
 There is no separate history page or competing direct-latest-detail shortcut.
 An item may open the one native detail route; Back restores the root position.
@@ -74,6 +74,8 @@ already exists. No live Jev/provider request was made for this research.
 ## Visual direction
 
 See [references and button recommendation](../docs/design/voice-notes-references.md).
-Keep the red control primary, the recipient below it, sparse lime delivery
-accents, and restrained voice-reactive motion. The earlier 12-panel sprite is
+Keep the lime control primary, a black stop glyph during recording, the recipient
+below it, and restrained lime voice-reactive motion. See the latest
+[Quick Voice variant](bb-watch-quick-voice.md) for explicit New thread behavior.
+The earlier 12-panel sprite is
 historical context for 2.0; it is not the new auto-routing composition.

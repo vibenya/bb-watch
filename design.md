@@ -5,9 +5,13 @@ latest two-action proposal: shortcut starts capture, Finish & send queues
 compressed delivery, optional manual target below the control. Its
 [concept](docs/design/quick-voice.png) replaces the earlier sprite for this variant.
 Technical/hardware proof remains pending.
+As of 19 October, the Quick Voice control and its halo use the existing lime
+accent `#D5FF00`, with a black stop glyph. This supersedes the older red capture
+styling below. New thread returns directly to the recorder with force-new intent;
+see the variant's explicit transition rules.
 
 **Latest direction:** [voice-notes update](specs/bb-watch-voice-notes-direction.md)
-adopts merged root history, reduced statuses, the red control above its recipient
+adopts merged root history, reduced statuses, the lime control above its recipient
 and plugin-assisted Auto routing / explicit Reply. [Visual references](docs/design/voice-notes-references.md).
 The 2.0 baseline below and its sprite require reconciliation with that update
 before implementation; do not treat old top-recipient or mandatory-target flows

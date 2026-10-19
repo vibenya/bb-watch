@@ -1,6 +1,6 @@
 # BB Quick Voice — minimal version
 
-18 October 2026. **Product/design proposal for the latest user request; not an
+Updated 19 October 2026. **Product/design proposal for the latest user request; not an
 implemented or hardware-validated build.** This refines the
 [voice-notes direction](bb-watch-voice-notes-direction.md). The older 2.0
 Finish/Send and mandatory-recipient flows are not this variant's contract.
@@ -26,11 +26,14 @@ An interruption, timeout, app exit or Pause never stands in for Finish & send.
 
 ## One screen
 
-Large red capture control; its selected destination **below** it; history further
-down by Crown scrolling. Idle is still. Live capture has a restrained red/coral
+Large lime capture control (`#D5FF00`, matching the existing BB Watch accent);
+its selected destination **below** it; history further
+down by Crown scrolling. Idle is still. Live capture has a restrained lime
 halo driven by actual microphone level, not a looping fake waveform. A small
 elapsed time is secondary. During capture the control's stop symbol has the
 short visible caption Finish & send so transmission is not disguised as Save.
+The stop glyph is black on lime. Capture remains distinguishable from a receipt
+by shape, placement, caption and motion; color alone does not signal recording.
 
 After enqueue, the same screen is ready for the next thought. The first history
 row is the latest receipt, not a separate shortcut or modal. Ordinary captions:
@@ -59,6 +62,30 @@ automatic sending because the user stopped speaking or left the app.
 - Plugin persists one destination/model decision per recording before submission.
   Keep original transcript, per-recipient Send order and no automatic replay
   after ambiguous BB acceptance. Existing thread execution policy is preserved.
+
+### What New thread does
+
+1. Tapping New thread closes the destination chooser and returns to the same
+   recorder/draft. The destination below the capture control reads New thread.
+   No microphone starts, no audio is sent and no BB thread is created by this tap.
+   If capture was live, it stays live; navigation itself does not toggle capture.
+2. This is explicit **force-new** intent, unlike Auto, which may choose an existing
+   thread. There is no mandatory project/model form or required title. The user
+   may say the project in the recording; an optional explicit project/model
+   choice remains available as a manual override, not an extra compulsory step.
+3. Finish & send freezes that New context and any explicit overrides. After
+   durable audio intake and transcription, the plugin resolves the project and
+   model subject to the overrides, then creates one new thread with the complete
+   first message. Spoken existing-thread wording cannot silently override the
+   explicit New choice; a conflict is held for clarification.
+4. If the project cannot be resolved confidently, keep the audio/job and request
+   clarification rather than choosing an unrelated project. Show the actual
+   thread title in that recording's history row only after it exists.
+
+An in-app follow-up still addressing the same pending New context resolves to
+that same future thread. Tapping New thread again explicitly starts an independent
+context. The dedicated quick-start shortcut still starts Auto as described above.
+An ambiguous create result is reconciled, never automatically spawned again.
 
 ## Recommended technology
 

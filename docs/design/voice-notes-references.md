@@ -24,8 +24,10 @@ of Voice Memos / Just Press Record.
 
 ## Button recommendation
 
-- Idle: a stable red circular control, still and unmistakably tappable.
-- Real capture: a soft red/coral halo or restrained deformation around that
+- BB update, 19 October: use the existing lime `#D5FF00` instead of the red used
+  in some references. Use a black stop glyph for contrast.
+- Idle: a stable lime circular control, still and unmistakably tappable.
+- Real capture: a soft lime halo or restrained deformation around that
   same control, driven by measured microphone amplitude with smoothing.
 - Quiet input: the form settles; no unrelated equalizer dances continually.
 - Pause: motion stops; Resume remains an explicit familiar control.
