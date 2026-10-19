@@ -1,9 +1,10 @@
 # BB Quick Voice — minimal version
 
-**Latest capture-control override:** [BB composer v5](../docs/design/bb-composer-v5.md).
-Start → Enter sends directly; square stops/saves locally; X discards. Use BB's
-left-to-right waveform without Send text or recording timer. This supersedes
-the capture-control descriptions/art below; routing/delivery invariants remain.
+**Latest recorder override:** [voice root v6](../docs/design/voice-root-v6.md).
+No default Auto row: only explicit targets are shown; bottom rows are recording
+history. Enter sends; square stops/saves and becomes microphone to append to the
+same recording, never Play. Playback is in history detail. No Send text/timer.
+This supersedes recorder descriptions/art below; delivery invariants remain.
 The old Fable approval does not cover this user-directed revision.
 
 Updated 19 October 2026. **Product/design proposal for the latest user request; not an

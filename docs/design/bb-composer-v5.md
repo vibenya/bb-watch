@@ -1,5 +1,8 @@
 # Quick Voice — original BB recording language
 
+**Superseded:** [voice root v6](voice-root-v6.md) removes the default Auto pill
+and replaces saved Play with microphone to append; playback is in history detail.
+
 19 October 2026. Latest user-directed revision; **not implemented or covered by
 the earlier Fable approval**. Supersedes v4's Send label, up arrow, halo, timer
 and pause controls. Retains the normal start → direct send flow.

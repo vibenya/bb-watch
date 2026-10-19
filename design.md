@@ -1,8 +1,10 @@
 # BB Watch — voice delivery design
 
-**Latest control revision:** [BB composer v5](docs/design/bb-composer-v5.md)
-uses BB's left-to-right waveform, curved Enter send, square stop/save and X
-discard. No Send text or recording timer. It supersedes v4's controls; the old
+**Latest recorder revision:** [voice root v6](docs/design/voice-root-v6.md) and
+[all-state board](docs/design/voice-root-v6.png). No default Auto row: root is
+recording plus history; only an explicit recipient is pinned. Square stops/saves,
+then becomes microphone for appending to the same draft. Enter sends; playback
+belongs in history detail. No Send text or timer. This supersedes v5; the old
 Fable approval remains a frozen historical verdict, not approval of this revision.
 
 [Tap / history / Reply storyboard](docs/design/quick-voice-interactions-v2.png) ·
