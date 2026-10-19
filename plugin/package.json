@@ -1,0 +1,36 @@
+{
+  "name": "bb-plugin-voice-terminal",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bb": {
+    "server": "./server.ts",
+    "name": "Voice terminal Phase 0",
+    "description": "Offline intake proof; not admitted or installed.",
+    "branding": {
+      "icon": "Mic"
+    },
+    "skills": []
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.6.37",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "22.19.0",
+    "better-sqlite3": "12.10.0",
+    "cron-parser": "5.5.0",
+    "hono": "4.13.13",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test intake.test.ts",
+    "schema": "node --experimental-strip-types generate-contract.ts"
+  },
+  "engines": {
+    "bb": "0.46.x",
+    "bbPluginSdk": "0.6.x"
+  }
+}

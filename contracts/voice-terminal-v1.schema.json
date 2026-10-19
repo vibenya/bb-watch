@@ -1,0 +1,1307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bb:voice-terminal:1:phase0-proposal",
+  "title": "Voice terminal v1 — Phase 0 proposal, not frozen",
+  "$defs": {
+    "manifest": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 1
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "instanceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "accountId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "connectionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            }
+          },
+          "required": [
+            "instanceId",
+            "accountId",
+            "connectionId",
+            "deviceId"
+          ],
+          "additionalProperties": false
+        },
+        "operationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,96}$"
+        },
+        "intent": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "bb"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "thread"
+                },
+                "threadId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "kind",
+                "threadId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "order": {
+          "type": "object",
+          "properties": {
+            "sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "predecessors": {
+              "maxItems": 63,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "operationId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                  },
+                  "sequence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "intent": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "bb"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "thread"
+                          },
+                          "threadId": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "threadId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "operationId",
+                  "sequence",
+                  "intent"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "sequence",
+            "predecessors"
+          ],
+          "additionalProperties": false
+        },
+        "audio": {
+          "type": "object",
+          "properties": {
+            "parts": {
+              "minItems": 1,
+              "maxItems": 64,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "index": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "segmentId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                  },
+                  "encoded": {
+                    "type": "object",
+                    "properties": {
+                      "encoding": {
+                        "type": "string",
+                        "enum": [
+                          "fixture-u8",
+                          "aac-lc-m4a-candidate"
+                        ]
+                      },
+                      "bytes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "encoding",
+                      "bytes",
+                      "sha256"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "sampleFormat": {
+                        "type": "string",
+                        "enum": [
+                          "fixture-u8",
+                          "float32",
+                          "int16"
+                        ]
+                      },
+                      "endian": {
+                        "type": "string",
+                        "const": "little"
+                      },
+                      "interleaved": {
+                        "type": "boolean"
+                      },
+                      "sampleRateHz": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "channels": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 32
+                      },
+                      "frames": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "bytes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "sampleFormat",
+                      "endian",
+                      "interleaved",
+                      "sampleRateHz",
+                      "channels",
+                      "frames",
+                      "bytes",
+                      "sha256"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "index",
+                  "segmentId",
+                  "encoded",
+                  "source"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "incompleteness": {
+              "maxItems": 64,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "afterPartIndex": {
+                    "type": "integer",
+                    "minimum": -1,
+                    "maximum": 63
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "interruption",
+                      "input-stall",
+                      "write-failure",
+                      "seal-timeout",
+                      "crash-tail"
+                    ]
+                  }
+                },
+                "required": [
+                  "afterPartIndex",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "parts",
+            "incompleteness"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "scope",
+        "operationId",
+        "intent",
+        "order",
+        "audio"
+      ],
+      "additionalProperties": false
+    },
+    "request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "declare"
+            },
+            "manifestUtf8": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "v",
+            "kind",
+            "manifestUtf8",
+            "manifestSha256"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "abandon"
+            },
+            "manifestUtf8": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "v",
+            "kind",
+            "manifestUtf8",
+            "manifestSha256"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "kind": {
+              "type": "string",
+              "const": "seal"
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "kind",
+            "manifestSha256"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "kind": {
+              "type": "string",
+              "const": "status"
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "partHeaders": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 1
+        },
+        "operationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,96}$"
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "partIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        }
+      },
+      "required": [
+        "v",
+        "operationId",
+        "manifestSha256",
+        "partIndex"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "kind": {
+              "type": "string",
+              "const": "receipt"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "jobId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "receiptId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "acceptedAtMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "validationProfile": {
+              "type": "string",
+              "enum": [
+                "fixture-bytes-v1",
+                "decoded-audio-v1"
+              ]
+            },
+            "partCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "encodedBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "sourceFrameCounts": {
+              "minItems": 1,
+              "maxItems": 64,
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "kind",
+            "scope",
+            "manifestSha256",
+            "jobId",
+            "receiptId",
+            "acceptedAtMs",
+            "validationProfile",
+            "partCount",
+            "encodedBytes",
+            "sourceFrameCounts"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "kind": {
+              "type": "string",
+              "const": "receiving"
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "receivedPartIndexes": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "kind",
+            "manifestSha256",
+            "receivedPartIndexes"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "kind": {
+              "type": "string",
+              "const": "fenced"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "fenceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "abandoned",
+                "target-unavailable"
+              ]
+            },
+            "acknowledgedAtMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "definitiveNonacceptance": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "kind",
+            "scope",
+            "manifestSha256",
+            "fenceId",
+            "reason",
+            "acknowledgedAtMs",
+            "definitiveNonacceptance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "kind": {
+              "type": "string",
+              "const": "unknown"
+            },
+            "definitiveNonacceptance": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "kind",
+            "definitiveNonacceptance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "error"
+            },
+            "code": {
+              "type": "string",
+              "enum": [
+                "unauthorized",
+                "invalid",
+                "conflict",
+                "missing-parts",
+                "unsupported-audio",
+                "limit",
+                "storage-unavailable"
+              ]
+            }
+          },
+          "required": [
+            "v",
+            "kind",
+            "code"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "pairing": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "redeem"
+            },
+            "setupCode": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 64
+            },
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            }
+          },
+          "required": [
+            "v",
+            "kind",
+            "setupCode",
+            "deviceId",
+            "requestId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "paired"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "keyId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "deviceToken": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 256
+            },
+            "scopes": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "const": "intake"
+                },
+                {
+                  "type": "string",
+                  "const": "threads-read"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "v",
+            "kind",
+            "scope",
+            "keyId",
+            "deviceToken",
+            "scopes"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "rotate"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            }
+          },
+          "required": [
+            "v",
+            "kind",
+            "scope",
+            "requestId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "revoke"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            }
+          },
+          "required": [
+            "v",
+            "kind",
+            "scope",
+            "requestId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "threadSnapshot": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 1
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "instanceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "accountId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "connectionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            }
+          },
+          "required": [
+            "instanceId",
+            "accountId",
+            "connectionId",
+            "deviceId"
+          ],
+          "additionalProperties": false
+        },
+        "threadId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,96}$"
+        },
+        "observedAtMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "validUntilMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,96}$"
+        },
+        "activity": {
+          "type": "string",
+          "enum": [
+            "unknown",
+            "idle",
+            "working",
+            "question",
+            "done",
+            "failure"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "v",
+        "scope",
+        "threadId",
+        "observedAtMs",
+        "validUntilMs",
+        "revision",
+        "activity",
+        "title",
+        "excerpt"
+      ],
+      "additionalProperties": false
+    },
+    "dispatchFact": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "state": {
+              "type": "string",
+              "const": "not-attempted"
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "scope",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "state": {
+              "type": "string",
+              "const": "attempting"
+            },
+            "attemptId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "retryDisposition": {
+              "type": "string",
+              "const": "reconcile-only"
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "scope",
+            "state",
+            "attemptId",
+            "retryDisposition"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "state": {
+              "type": "string",
+              "const": "unknown"
+            },
+            "attemptId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "retryDisposition": {
+              "type": "string",
+              "const": "reconcile-only"
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "scope",
+            "state",
+            "attemptId",
+            "retryDisposition"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "v": {
+              "type": "number",
+              "const": 1
+            },
+            "operationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "scope": {
+              "type": "object",
+              "properties": {
+                "instanceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,96}$"
+                }
+              },
+              "required": [
+                "instanceId",
+                "accountId",
+                "connectionId",
+                "deviceId"
+              ],
+              "additionalProperties": false
+            },
+            "state": {
+              "type": "string",
+              "const": "accepted"
+            },
+            "attemptId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "threadId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "coreReference": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "retryDisposition": {
+              "type": "string",
+              "const": "never"
+            }
+          },
+          "required": [
+            "v",
+            "operationId",
+            "scope",
+            "state",
+            "attemptId",
+            "threadId",
+            "coreReference",
+            "retryDisposition"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

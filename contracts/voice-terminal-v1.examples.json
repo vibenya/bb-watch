@@ -1,0 +1,315 @@
+{
+  "notice": "Synthetic documentation fixtures only. No production receipt/codec/admission proof.",
+  "manifests": [
+    {
+      "v": 1,
+      "scope": {
+        "instanceId": "fixture-bb",
+        "accountId": "fixture-account",
+        "connectionId": "fixture-connection",
+        "deviceId": "fixture-watch"
+      },
+      "operationId": "operation-1",
+      "intent": {
+        "kind": "bb"
+      },
+      "order": {
+        "sequence": 1,
+        "predecessors": []
+      },
+      "audio": {
+        "parts": [
+          {
+            "index": 0,
+            "segmentId": "segment-0",
+            "encoded": {
+              "encoding": "fixture-u8",
+              "bytes": 4,
+              "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+            },
+            "source": {
+              "sampleFormat": "fixture-u8",
+              "endian": "little",
+              "interleaved": true,
+              "sampleRateHz": 16000,
+              "channels": 1,
+              "frames": 4,
+              "bytes": 4,
+              "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+            }
+          },
+          {
+            "index": 1,
+            "segmentId": "segment-1",
+            "encoded": {
+              "encoding": "fixture-u8",
+              "bytes": 2,
+              "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+            },
+            "source": {
+              "sampleFormat": "fixture-u8",
+              "endian": "little",
+              "interleaved": true,
+              "sampleRateHz": 48000,
+              "channels": 1,
+              "frames": 2,
+              "bytes": 2,
+              "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+            }
+          }
+        ],
+        "incompleteness": [
+          {
+            "afterPartIndex": 0,
+            "reason": "interruption"
+          }
+        ]
+      }
+    },
+    {
+      "v": 1,
+      "scope": {
+        "instanceId": "fixture-bb",
+        "accountId": "fixture-account",
+        "connectionId": "fixture-connection",
+        "deviceId": "fixture-watch"
+      },
+      "operationId": "operation-2",
+      "intent": {
+        "kind": "thread",
+        "threadId": "thread-T"
+      },
+      "order": {
+        "sequence": 2,
+        "predecessors": [
+          {
+            "operationId": "operation-1",
+            "sequence": 1,
+            "intent": {
+              "kind": "bb"
+            }
+          }
+        ]
+      },
+      "audio": {
+        "parts": [
+          {
+            "index": 0,
+            "segmentId": "segment-0",
+            "encoded": {
+              "encoding": "fixture-u8",
+              "bytes": 4,
+              "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+            },
+            "source": {
+              "sampleFormat": "fixture-u8",
+              "endian": "little",
+              "interleaved": true,
+              "sampleRateHz": 16000,
+              "channels": 1,
+              "frames": 4,
+              "bytes": 4,
+              "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+            }
+          },
+          {
+            "index": 1,
+            "segmentId": "segment-1",
+            "encoded": {
+              "encoding": "fixture-u8",
+              "bytes": 2,
+              "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+            },
+            "source": {
+              "sampleFormat": "fixture-u8",
+              "endian": "little",
+              "interleaved": true,
+              "sampleRateHz": 48000,
+              "channels": 1,
+              "frames": 2,
+              "bytes": 2,
+              "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+            }
+          }
+        ],
+        "incompleteness": [
+          {
+            "afterPartIndex": 0,
+            "reason": "interruption"
+          }
+        ]
+      }
+    },
+    {
+      "v": 1,
+      "scope": {
+        "instanceId": "fixture-bb",
+        "accountId": "fixture-account",
+        "connectionId": "fixture-connection",
+        "deviceId": "fixture-watch"
+      },
+      "operationId": "operation-3",
+      "intent": {
+        "kind": "thread",
+        "threadId": "thread-U"
+      },
+      "order": {
+        "sequence": 3,
+        "predecessors": [
+          {
+            "operationId": "operation-1",
+            "sequence": 1,
+            "intent": {
+              "kind": "bb"
+            }
+          },
+          {
+            "operationId": "operation-2",
+            "sequence": 2,
+            "intent": {
+              "kind": "thread",
+              "threadId": "thread-T"
+            }
+          }
+        ]
+      },
+      "audio": {
+        "parts": [
+          {
+            "index": 0,
+            "segmentId": "segment-0",
+            "encoded": {
+              "encoding": "fixture-u8",
+              "bytes": 4,
+              "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+            },
+            "source": {
+              "sampleFormat": "fixture-u8",
+              "endian": "little",
+              "interleaved": true,
+              "sampleRateHz": 16000,
+              "channels": 1,
+              "frames": 4,
+              "bytes": 4,
+              "sha256": "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a"
+            }
+          },
+          {
+            "index": 1,
+            "segmentId": "segment-1",
+            "encoded": {
+              "encoding": "fixture-u8",
+              "bytes": 2,
+              "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+            },
+            "source": {
+              "sampleFormat": "fixture-u8",
+              "endian": "little",
+              "interleaved": true,
+              "sampleRateHz": 48000,
+              "channels": 1,
+              "frames": 2,
+              "bytes": 2,
+              "sha256": "c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623"
+            }
+          }
+        ],
+        "incompleteness": [
+          {
+            "afterPartIndex": 0,
+            "reason": "interruption"
+          }
+        ]
+      }
+    }
+  ],
+  "requests": [
+    {
+      "v": 1,
+      "kind": "declare",
+      "manifestUtf8": "{\"v\":1,\"scope\":{\"instanceId\":\"fixture-bb\",\"accountId\":\"fixture-account\",\"connectionId\":\"fixture-connection\",\"deviceId\":\"fixture-watch\"},\"operationId\":\"operation-1\",\"intent\":{\"kind\":\"bb\"},\"order\":{\"sequence\":1,\"predecessors\":[]},\"audio\":{\"parts\":[{\"index\":0,\"segmentId\":\"segment-0\",\"encoded\":{\"encoding\":\"fixture-u8\",\"bytes\":4,\"sha256\":\"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a\"},\"source\":{\"sampleFormat\":\"fixture-u8\",\"endian\":\"little\",\"interleaved\":true,\"sampleRateHz\":16000,\"channels\":1,\"frames\":4,\"bytes\":4,\"sha256\":\"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a\"}},{\"index\":1,\"segmentId\":\"segment-1\",\"encoded\":{\"encoding\":\"fixture-u8\",\"bytes\":2,\"sha256\":\"c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623\"},\"source\":{\"sampleFormat\":\"fixture-u8\",\"endian\":\"little\",\"interleaved\":true,\"sampleRateHz\":48000,\"channels\":1,\"frames\":2,\"bytes\":2,\"sha256\":\"c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623\"}}],\"incompleteness\":[{\"afterPartIndex\":0,\"reason\":\"interruption\"}]}}",
+      "manifestSha256": "04c07feb51e4cd04d114352693e537a27e657752703cac0c74f2b2b6853ced39"
+    },
+    {
+      "v": 1,
+      "operationId": "operation-1",
+      "kind": "seal",
+      "manifestSha256": "04c07feb51e4cd04d114352693e537a27e657752703cac0c74f2b2b6853ced39"
+    },
+    {
+      "v": 1,
+      "operationId": "operation-1",
+      "kind": "status"
+    },
+    {
+      "v": 1,
+      "kind": "abandon",
+      "manifestUtf8": "{\"v\":1,\"scope\":{\"instanceId\":\"fixture-bb\",\"accountId\":\"fixture-account\",\"connectionId\":\"fixture-connection\",\"deviceId\":\"fixture-watch\"},\"operationId\":\"operation-1\",\"intent\":{\"kind\":\"bb\"},\"order\":{\"sequence\":1,\"predecessors\":[]},\"audio\":{\"parts\":[{\"index\":0,\"segmentId\":\"segment-0\",\"encoded\":{\"encoding\":\"fixture-u8\",\"bytes\":4,\"sha256\":\"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a\"},\"source\":{\"sampleFormat\":\"fixture-u8\",\"endian\":\"little\",\"interleaved\":true,\"sampleRateHz\":16000,\"channels\":1,\"frames\":4,\"bytes\":4,\"sha256\":\"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a\"}},{\"index\":1,\"segmentId\":\"segment-1\",\"encoded\":{\"encoding\":\"fixture-u8\",\"bytes\":2,\"sha256\":\"c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623\"},\"source\":{\"sampleFormat\":\"fixture-u8\",\"endian\":\"little\",\"interleaved\":true,\"sampleRateHz\":48000,\"channels\":1,\"frames\":2,\"bytes\":2,\"sha256\":\"c42522128b49193de8cd45d8f7589cd7e085e65f138640d57d4482e5f7189623\"}}],\"incompleteness\":[{\"afterPartIndex\":0,\"reason\":\"interruption\"}]}}",
+      "manifestSha256": "04c07feb51e4cd04d114352693e537a27e657752703cac0c74f2b2b6853ced39"
+    }
+  ],
+  "responses": [
+    {
+      "v": 1,
+      "operationId": "operation-1",
+      "kind": "receipt",
+      "scope": {
+        "instanceId": "fixture-bb",
+        "accountId": "fixture-account",
+        "connectionId": "fixture-connection",
+        "deviceId": "fixture-watch"
+      },
+      "manifestSha256": "04c07feb51e4cd04d114352693e537a27e657752703cac0c74f2b2b6853ced39",
+      "jobId": "fixture-job",
+      "receiptId": "fixture-receipt",
+      "acceptedAtMs": 1000,
+      "validationProfile": "fixture-bytes-v1",
+      "partCount": 2,
+      "encodedBytes": 6,
+      "sourceFrameCounts": [
+        4,
+        2
+      ]
+    },
+    {
+      "v": 1,
+      "operationId": "absent-operation",
+      "kind": "unknown",
+      "definitiveNonacceptance": false
+    },
+    {
+      "v": 1,
+      "operationId": "operation-1",
+      "kind": "fenced",
+      "scope": {
+        "instanceId": "fixture-bb",
+        "accountId": "fixture-account",
+        "connectionId": "fixture-connection",
+        "deviceId": "fixture-watch"
+      },
+      "manifestSha256": "04c07feb51e4cd04d114352693e537a27e657752703cac0c74f2b2b6853ced39",
+      "fenceId": "fixture-fence",
+      "reason": "abandoned",
+      "acknowledgedAtMs": 1000,
+      "definitiveNonacceptance": true
+    }
+  ],
+  "orderExamples": [
+    {
+      "case": "earlier BB missing, exact T complete",
+      "expect": "T blocked by operation-1"
+    },
+    {
+      "case": "operation-1 fence acknowledged, T complete",
+      "expect": "T barrier released"
+    },
+    {
+      "case": "earlier exact T missing, later exact U complete, no unresolved BB",
+      "expect": "U independent"
+    },
+    {
+      "case": "T core submission unknown, later same T",
+      "expect": "T blocked; original operation ID, no dispatch replay"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+
+> bb-plugin-voice-terminal@0.0.1 test
+> node --experimental-strip-types --test intake.test.ts
+
+TAP version 13
+# Subtest: HTTP boundary denies missing/wrong/revoked keys and isolates scopes without leaking receipt
+ok 1 - HTTP boundary denies missing/wrong/revoked keys and isolates scopes without leaking receipt
+  ---
+  duration_ms: 32.451583
+  type: 'test'
+  ...
+# Subtest: complete immutable intake survives lost response, duplicate/out-of-order part, concurrent seal and SDK reload
+ok 2 - complete immutable intake survives lost response, duplicate/out-of-order part, concurrent seal and SDK reload
+  ---
+  duration_ms: 11.424458
+  type: 'test'
+  ...
+# Subtest: fence wins before late seal, target denial is durably nonaccepted, status unknown is not a fence
+ok 3 - fence wins before late seal, target denial is durably nonaccepted, status unknown is not a fence
+  ---
+  duration_ms: 6.649333
+  type: 'test'
+  ...
+# Subtest: identity conflict, malformed order and source layout cannot rewrite accepted intent or open a job
+ok 4 - identity conflict, malformed order and source layout cannot rewrite accepted intent or open a job
+  ---
+  duration_ms: 6.720875
+  type: 'test'
+  ...
+# Subtest: never-received BB predecessor blocks exact target; acknowledged fence releases, independent exact lanes do not wait
+ok 5 - never-received BB predecessor blocks exact target; acknowledged fence releases, independent exact lanes do not wait
+  ---
+  duration_ms: 6.3365
+  type: 'test'
+  ...
+# Subtest: committed source, receipt and fence survive separate process exit/reopen; interrupted transaction cannot fabricate receipt
+ok 6 - committed source, receipt and fence survive separate process exit/reopen; interrupted transaction cannot fabricate receipt
+  ---
+  duration_ms: 252.476416
+  type: 'test'
+  ...
+# Subtest: job write failure returns no receipt and preserves original identity and bytes for same-ID retry
+ok 7 - job write failure returns no receipt and preserves original identity and bytes for same-ID retry
+  ---
+  duration_ms: 7.310792
+  type: 'test'
+  ...
+# Subtest: only public SDK imports and declared local dependencies are used
+ok 8 - only public SDK imports and declared local dependencies are used
+  ---
+  duration_ms: 1.227416
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 460.039958
