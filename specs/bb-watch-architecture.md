@@ -1,12 +1,19 @@
-# BB Watch 2.0 — architecture and gated implementation plan
+# BB Watch 2.0 — historical engineering baseline
 
-**Pending extension:** the [voice-notes direction](bb-watch-voice-notes-direction.md)
+**Not the current implementation plan:** [product 3.0](bb-watch-product-spec.md)
+and its [transition contract](bb-watch-transition-contract.md) supersede the
+watch UX and recipient assumptions below. Reconcile routing, compression,
+notification/deep-link and exception handling before a clean implementation.
+The old review does not approve 3.0 and no runtime gate is closed.
+
+**Historical pending extension:** the [voice-notes direction](bb-watch-voice-notes-direction.md)
 adds Auto destination/model routing and pinned Reply. This architecture's complete
 target-at-intake assumption must be revised and reviewed before that extension
 is implemented; the existing review does not validate it.
 
 Status: **reviewed for gated Phase 0; runtime gates unproven.** Companion to the
-[product spec 2.0](bb-watch-product-spec.md), [design 2.0](../design.md) and the
+[product spec 2.0](archive/bb-watch-product-spec-2.0.md),
+[historical design](archive/design-before-voice-terminal-3.0.md) and the
 [review](reviews/bb-watch-v2-fable-review.md). Platform facts cite the installed
 BB 0.46.0 and plugin SDK 0.6.37 declarations; anything not verified is a Phase 0
 go/no-go gate. Approval of this plan authorises running the gates, not a claim

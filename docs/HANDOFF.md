@@ -1,23 +1,27 @@
-# Current design direction — Quick Voice, runtime gates open
+# Current product direction — voice terminal 3.0, runtime gates open
 
-The latest minimal design is [Quick Voice](../specs/bb-watch-quick-voice.md), with
-[tap/history/Reply semantics](design/quick-voice-interactions.md),
-[navigation storyboard](design/quick-voice-interactions-v2.png),
-[capture/recovery states](design/quick-voice-states-v2.png) and a
-[fresh Fable approval packet](../specs/reviews/quick-voice-approval-pack.md).
-Read the [current independent verdict](../specs/reviews/quick-voice-fable-review.md).
-Action Button capture, compressed audio intake and computer-side ASR/Jev routing
-are proposals, not installed functionality. New context settings, pause/Continue,
-recipient lifetime and explicit Finish behavior are defined in that packet.
-The 2.0 architecture remains an inherited reliability baseline, not an approved
-implementation plan for Auto routing or lossy transport. No fresh implementation,
-worktree, device build or runtime-gate completion accompanies this design work.
+Read the canonical [product contract](../specs/bb-watch-product-spec.md),
+[design](../design.md), [transitions/errors](../specs/bb-watch-transition-contract.md)
+and [Opus transition review](../specs/reviews/voice-terminal-opus-review.md).
+The [current concept](design/voice-terminal-v8.png) shows stable states with red
+REC append after Stop; it does not verify runtime behavior.
+
+Only recorder and Threads are everyday watch surfaces. No recording-history,
+playback, delivery-detail, Reply/New/project/model pages. One lower component
+shows the chosen thread and its actual activity; input/transport recovery is
+separate. Read messages in BB/notifications; reply links reopen the same recorder.
+The current code/build remains 0.2.0, not this contract. No clean rewrite,
+worktree, implementation, provider call, device build/install or runtime proof is
+implied by these documents. The earlier architecture needs a 3.0 update before
+implementation; its safety invariants survive but its old UI/routing assumptions
+are not a builder's contract. Earlier Fable reviews apply only to their frozen
+historical packets, not this consolidated product.
 
 # Earlier direction — reviewed specification 2.0, runtime gates open
 
 The next product is a watch voice-delivery interface plus a BB intake plugin.
 Transcription and thread submission move to the computer. See the proposed
-[specification](../specs/bb-watch-product-spec.md), [design](../design.md),
+[specification](../specs/archive/bb-watch-product-spec-2.0.md), [design](../specs/archive/design-before-voice-terminal-3.0.md),
 [gated architecture](../specs/bb-watch-architecture.md) and
 [Fable review](../specs/reviews/bb-watch-v2-fable-review.md).
 These documents do not describe completed source changes. The native 0.2.0 code

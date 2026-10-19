@@ -1,5 +1,9 @@
 # Quick Voice — a voice terminal, two surfaces
 
+**Superseded:** [product 3.0](../../specs/bb-watch-product-spec.md) and
+[current design](../../design.md), including red REC instead of microphone after
+Stop and the full transition/error contract. This remains an archived concept.
+
 19 October 2026. Latest user-directed scope reduction. **Not implemented or
 covered by the earlier Fable review.** Supersedes v6's history/detail/Reply pages,
 New context UI and persistent delivery copy. The normal job is record → send →

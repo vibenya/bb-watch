@@ -1,4 +1,7 @@
-# BB Watch — voice-notes direction update
+# BB Watch — historical voice-notes direction update
+
+Current behavior is consolidated in [product 3.0](bb-watch-product-spec.md).
+The iterative decisions below are historical, not a second current contract.
 
 18 October 2026. **User direction adopted; routing implementation contract still
 requires review.** This updates the product intent of [specification 2.0](bb-watch-product-spec.md)

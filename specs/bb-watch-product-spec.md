@@ -1,273 +1,316 @@
-# BB Watch — voice delivery interface
+# BB Watch — voice terminal
 
-**Direction update:** [voice notes and automatic routing](bb-watch-voice-notes-direction.md)
-records the user's newer decisions. It supersedes this baseline where stated;
-its routing/receipt/order contract still requires architecture validation.
+Version 3.0 · 19 October 2026 · **Consolidated behavioral contract; not implemented or hardware validated.**
 
-Version 2.0 · 18 October 2026 · **Reviewed product contract; not implemented.**
+This is the canonical product specification. [Design](../design.md) describes its
+presentation; the [transition/error contract](bb-watch-transition-contract.md)
+defines event ordering and recovery. The previous [2.0 product contract](archive/bb-watch-product-spec-2.0.md)
+and design iterations are historical. Their reviews do not approve this revision.
+Installed source remains 0.2.0 with [contract 1.2](archive/bb-watch-product-spec-1.2.md).
 
-This specification supersedes 1.2 for the next implementation. Existing application
-code is not a reference implementation. [Design](../design.md) defines navigation;
-[architecture and gated plan](bb-watch-architecture.md) record independent
-[Fable review](reviews/bb-watch-v2-fable-review.md) and lead validation.
-Approval covers the documented Phase 0 proofs; runtime gates remain unproven.
-Version 1.2 is archived for the
-installed build; it must not leak requirements into the fresh implementation.
+## 1. Job and product boundary
 
-## 1. Job and boundary
+When I have a thought or want to reply to an agent, I want to record it and send
+it from my watch, so I can return to real life with little screen interaction.
+The routine is **record → send → record → send**. Read messages in full BB and
+ordinary notifications; the watch is not another workspace or chat reader.
 
-When I have a thought for an agent, I want to record it on my watch and send it
-to the right BB thread, so I can return to real life without watching a spinner,
-keeping my wrist raised, or opening my phone.
+The product comprises a standalone native watchOS voice terminal and a BB plugin
+on the computer, an external input adapter like a Telegram connector. The watch
+owns capture, recoverable original audio, recipient intent and durable delivery.
+The plugin owns audio intake, decoding/transcription, Jev-assisted destination /
+model selection and BB submission. Provider keys and ASR calls stay off the watch.
+Computer-side orchestration may use configured hosted services; it is not a claim
+of fully local inference. The computer may be asleep or unreachable; the product
+does not claim to wake it or require a nearby iPhone.
 
-The product comprises a small independent watchOS voice recorder/delivery client
-and a BB plugin on the computer. The plugin is an external-input adapter, like
-a Telegram connector. BB remains the workspace, conversation and agent runtime.
-The watch is not a second BB workspace. It owns capture, local originals,
-recipient intent and transfer. The plugin owns durable audio intake, transcription
-and submission to BB. A hosted ASR service may be called by the computer; audio
-must never go directly from the watch to an ASR provider.
+**Audio acceptance, transcript acceptance and thread activity are different facts.**
+The plugin's durable complete-audio receipt ends the watch's transfer ownership;
+it does not mean that ASR, routing, an agent turn or the agent task succeeded.
 
-**The watch's success boundary is a durable BB audio receipt**, not completed
-transcription or agent output. Receiving an HTTP response, uploading all bytes,
-accepting a transcript and completing an agent task are distinct facts.
+## 2. Two watch surfaces
 
-## 2. Actors and first release
+1. **Recorder:** input controls and exactly one lower thread/context component.
+2. **Threads:** one sheet for context selection, with optional inline expansion
+   of the current thread's short original activity/message excerpt.
 
-- User with an Apple Watch Ultra 2, independently connected over LTE/Wi-Fi.
-- Paired BB plugin with a reachable BB computer; no nearby iPhone requirement.
-- BB's configured transcription service and the selected existing/new thread.
-- The computer may be asleep/offline. The watch safely queues audio until it
-  can reach the plugin. No claim that this product wakes a sleeping computer.
+No recording history, playback, delivery-detail page, separate Reply, New-thread
+wizard, project/model form, conversation reader, answer speech, agent summary page
+or question-choice workflow. New tasks/projects/models are requested in speech
+or configured in full BB. Native permissions, first pairing, discard confirmation
+and exceptional actionable alerts are allowed; they are not everyday navigation.
 
-Included: native full-screen recorder; pause/resume; autosave; explicit Send;
-thread selection; New with project and optional model override; durable outbox;
-file-backed background transfer; receipt reconciliation; minimal recording
-history with local audio replay/delete; desktop intake/transcription/status UI;
-recovery without replaying an ambiguously accepted agent message.
+The ordinary recorder has no Recording title, Received by BB / Resolve on BB
+copy, Send label, elapsed recording timer, fake percentage or decorative halo.
+Rare failures may use short English recovery copy; icon-only normal UI must not
+make errors inexplicable. Audio duration may exist internally for integrity checks.
 
-Excluded from the watch: transcript generation/editing; provider API keys;
-agent-thinking views, conversation reader, live task summaries, question-choice
-workflows, answer speech and a miniature BB sidebar. These are deliberate changes
-from 1.2. Thread/model selection is a delivery affordance, not workspace management.
-No automatic recording, automatic Send, autoplay, notifications or audio discard on dismissal.
+## 3. Record, stop, append, send
 
-## 3. Everyday behavior
-
-1. Launch to one full-screen recorder. After the system microphone permission
-   has been granted, one conspicuous Record control starts capture, including
-   offline/unpaired. No project/model prerequisite. Pending activation is honest;
-   microphone denial/unavailability shows a recoverable state, never a fake meter.
-2. A compact recipient row names the current target or says `Choose thread`.
-   It is visible before Send; during recording it identifies this draft's target.
-3. Recordings checkpoint locally. Pause stops input; resume continues the same
-   draft. Wrist-down capture must continue with the legitimate recording audio
-   session; OS interruption, storage stop or termination preserves finalized
-   parts and returns as `Paused · interrupted`, with the cause when known. An
-   incomplete capture is never silently presented as finished. Actual wrist-down
-   and not-frontmost capture are hardware gates, separate from transfer APIs.
-4. Send is explicit and available during recording or pause. It finishes capture,
-   freezes recipient and immutable audio manifest, and queues delivery durably.
-   Without a complete recipient, Send first pauses capture and opens the required
-   chooser (Threads, or Project for New without a project). Selection returns to
-   the paused recorder for a final explicit Send. Choosing a target never sends.
-5. After durable enqueue, the recorder is immediately ready for another thought.
-   A compact latest-delivery row links to the outbox; no modal progress lock.
-6. Wrist down, screen dimmed and ordinary app backgrounding do not require the
-   user to resume ASR or keep the recorder open. The OS may defer networking;
-   local audio and transfer identity persist. No promise of an OS scheduling ETA.
-7. `Received by BB` means the plugin durably holds the complete validated original,
-   its exact recipient intent and a recoverable processing job. ASR may start
-   later and may fail. This cannot turn back into a watch upload failure.
-8. The plugin transcribes complete audio in ordered groups within the voice
-   service's verified size/time envelope, preserving completed results across
-   retry/restart. A failed group cannot silently disappear or cause submission
-   of incomplete text. The complete text becomes one logical message to the
-   exact target. BB-side errors are handled on BB; no re-dictation or re-upload
-   just because ASR failed.
-9. One active compose ID restores the same paused draft on return. Other autosaved
-   unsent drafts may remain in history. An explicit secondary `New recording`
-   action parks the current paused draft; `Continue` restores a chosen older
-   draft. Neither action sends or deletes anything, nor starts the microphone.
-   Users can save several thoughts while unpaired with no available recipient.
-
-## 4. Recipient rules
-
-- Use a small recent-threads list with search on demand and a `New thread` row.
-  Preserve exact child-thread IDs. Do not replace a selected child with a family.
-  Hidden/archived/deleted/unavailable recipients are not silently substituted.
-- A cached target remains selectable offline, with freshness explained when
-  relevant. BB validates authorization and availability before processing.
-- Existing thread: show its actual title; do not require choosing a model.
-- New: choose a project; `Project default` is a valid model choice. Optional
-  overrides come only from the plugin's verified catalog. No required title.
-- New is local intent. Selecting New returns to the recorder; Project and Model
-  each use a separate single-level sheet. Picking a value commits only that
-  choice; Close commits nothing. No wizard or extra `Use target` step.
-- The real thread is created at the plugin's first dispatch of the New context,
-  with full initial transcript and a durable context correlation marker. Mapping
-  a found thread back to its context is not proof that its first prompt was
-  accepted: an ambiguous spawn is reconciled or blocked, never blindly repeated.
-- The current compose context has a stable ID. A follow-up to a pending New
-  context goes to the same future real thread. Choosing `New thread` explicitly
-  again creates an independent context. No fabricated server thread IDs.
-- Once enqueued, recipients and New configuration are frozen. Later draft target
-  changes cannot mutate an already pending context; an explicit independent New
-  is required for a different project/model. Background receipts never move UI.
-- Retargeting an enqueued item requires confirmed nonacceptance or a durable
-  abandoned-operation fence from BB before creating a replacement operation.
-  Missing acknowledgements and best-effort cancellation are insufficient. Keep
-  original audio/identity while acceptance is unknown; received items are repaired
-  on BB, never silently sent somewhere else.
-- Per-recipient Send order is preserved, including audio that finishes uploading
-  out of order. Separate existing threads and independent New contexts progress
-  independently. A failed earlier ASR may be explicitly skipped/repaired on BB;
-  no silent reordering of later messages.
-
-## 5. Navigation and visual behavior
-
-The [design contract](../design.md) must enumerate every exit and return path.
-One full-screen recording surface, native list navigation and focused system
-sheets; no custom stack of rounded pseudo-phone screens. Short English UI copy.
-Black base, white text, sparse lime accent, red only for capture controls.
-
-A sheet has an ordinary visible Close (X). It closes that sheet, returns to the
-same parent/draft/scroll position and never starts or resumes recording, selects
-a value, sends, deletes, or navigates to a different root. Sheets have no navigation hierarchy and no Back. Picker selection commits one
-chosen value and returns to the recorder. Dismissal without selection leaves
-values unchanged. Recordings/detail/settings use native pushes and Back pops the
-actual invoking path. No microphone button masquerades as dismissal; the chooser
-is opened by its visible row, without a custom swipe shortcut.
-
-Recorder mode, icon changes, captions, haptics and accessibility labels agree.
-One small truthful stage caption is allowed for ambiguous transfer/failure states;
-no giant status word, fake percentage, meaningless waveform or looping pulse
-that implies live input when none exists. Short opacity/content transitions,
-Reduce Motion, Dynamic Type, VoiceOver and Always On are part of acceptance.
-At default text size on 49 mm and the supported smaller watch size, the first
-recorder viewport shows recipient, recording/pause/resume and available Send
-without scrolling. Optional New fields and history do not push primary controls
-out of view. Larger accessibility text scrolls naturally with the Crown.
-
-## 6. Ownership and receipts
-
-| Fact | Owner and observable evidence | Watch presentation |
+| Stable compose state | Visible controls | Intent |
 |---|---|---|
-| Audio checkpointed | Watch durable draft and finalized original parts | Saved locally |
-| Explicit Send persisted | Watch immutable manifest + recipient + operation ID | Queued |
-| Transfer scheduled/in progress | OS task + reconciled acknowledged bytes | Waiting / Sending |
-| Plugin holds all audio | Durable receipt with recording ID, validated manifest/hash, target/context and job ID | Received by BB |
-| ASR pending/running/failed | Plugin durable job, retained original | Detail only, no main-screen dependency |
-| Transcript accepted as BB input | Verifiable dispatch acknowledgement or reconciled core record | Detail only |
-| Dispatch acceptance unknown | Plugin retains operation and pauses automatic dispatch | Needs attention on BB |
+| Empty | Dominant lime microphone | Begin a fresh draft |
+| Recording | Real left-to-right waveform; X / filled square / lime curved Enter | Discard / stop-save / send directly |
+| Stopped | Static waveform; X / **red REC with contrasting filled-circle glyph** / same Enter | Discard / append / send directly |
 
-Do not translate `Received by BB` to agent `Done`. Duplicate receipt/status
-queries are safe. An upload receipt lost in transit is reconciled by the stable
-recording ID. A retry of the same recording cannot create a new BB processing job.
-There is one processing job per recording: the receipt's `jobId` equals its
-`recordingId` and remains stable through transcription retries.
+The initial microphone remains lime. After Stop, the center button is red classic
+REC, never microphone, Play or a second send control. REC appends to the **same**
+draft ID, preserving all previous audio and its context. Starting a new input
+segment cannot overwrite an earlier part. Intentional stopped time is not speech
+and must not turn into a fabricated silent recording segment.
 
-The plugin may not claim exactly-once thread mutation without verified BB-side
-idempotency/reconciliation. It must durably mark the dispatch boundary, preserve
-actual acknowledgements, and stop replay after ambiguous acceptance. This is a
-release-critical capability/limitation, not an undocumented retry policy.
+Square stops input and checkpoints locally without sending. Enter finishes and
+queues directly from live or stopped state; a separate pause/confirmation is not
+required. Curved Enter matches BB's return-arrow send vocabulary; a checkmark or
+up arrow is not an equivalent action glyph. X checkpoints/stops before asking
+to discard nonempty audio; rejecting discard leaves the same draft stopped.
 
-## 7. Failure, storage and recovery
+Pending activation/first input, checkpoint, append activation and finalization
+are explicit transient states, not fake stable states. No waveform or start
+haptic claims recording before actual input. No Send before the first
+usable audio; the initiating gesture cannot also send. Stop, REC, Enter, X and
+context selection cannot race into two owners or duplicate operations. The
+transition contract defines the guard and recoverable outcome for each event.
+Every transient has a bounded safe exit. Local restoration never waits for
+network receipt reconciliation; one corrupt old operation cannot trap the whole
+app in a spinner. If safe local storage/ownership cannot be established, expose
+short actionable recovery with input blocked, not a false ready state or an
+automatic destructive reset. Preserve source and drain old owners before retry.
 
-- No arbitrary duration limit. Chunked originals support long speech and crashes;
-  finite storage/network limits are explained honestly. Low space stops capture
-  safely with a useful message and keeps all already finalized parts.
-- A four-minute bilingual recording must remain complete and ordered. Interruptions
-  cannot silently omit a middle segment or submit a partial transcript as complete.
-- Partial upload, lost receipt, URLSession task loss, OS termination, process death,
-  restart, pairing revocation and plugin reload have explicit recovery states.
-  The OS may not resume a user-force-quit app without relaunch; the app must not
-  pretend it can reliably detect why it cold-started. Every cold start reconciles
-  task and server receipts before recreating any upload.
-- The watch retains originals until a verifiable durable plugin receipt; a later
-  automatic cleanup requires a documented retention policy, never mere HTTP 200.
-  First release defaults to explicit local deletion, outside the primary flow.
-- Delete is separate from Close. An unsent draft can be deleted after explicit
-  confirmation. Enqueued audio is retained until receipt or a confirmed durable
-  abandon; no acknowledged parts does not prove that no data was received.
-  A received local copy can be deleted with an explicit non-retraction label;
-  deleting desktop audio or a dispatched prompt is a separate BB action.
-  Uncertain acceptance cannot be presented as safely canceled or unsent.
-- Audio retention/deletion never removes the deduplication fact or permits an
-  old signed/in-flight operation to become a fresh processing job. Receipt and
-  abandonment tombstones outlive the audio according to a documented policy.
-- ASR failures retain desktop audio and completed results. Retry occurs on the
-  computer and does not re-upload or create an extra agent turn. Corrupt/truncated
-  audio is rejected before a success receipt; compatible complete chunks remain.
-- Re-pair/account switch freezes old-account work and explains it. No cross-account
-  migration/rebinding of queued audio, credentials or cached thread choices.
-- Server size/codec/concurrency/retention limits and storage-full behavior are
-  documented and enforced without turning a technical per-file limit into an
-  arbitrary maximum recording duration. No hidden public audio URLs.
+For a paired connection, Enter freezes audio, exact routing intent, pairing
+identity and Send order into one durable outbox operation. Without pairing, Enter
+only stages local audio with BB routing intent: it cannot upload. After setup,
+an explicit Send confirmation binds those staged items to the displayed
+connection; entering the pairing code alone never flushes them. Already bound
+work is never rebound through that confirmation. **Only durable enqueue frees compose** for the next
+thought. A failure before that boundary restores retained stopped audio; a crash
+across it reconciles identity, never offers the same audio as a fresh unsent send.
+Returning to ready is not a delivery-success claim. ASR, routing and network wait
+never block the next fresh recording after enqueue. No silence, dismissal,
+interruption, backgrounding, context switch or app exit implicitly sends.
 
-## 8. Pairing, privacy and identity
+Ordinary launch restores context/draft with mic off. An explicitly configured
+quick-start starts or appends within the visible context after authorization /
+permission; during active capture it reveals that capture, never sends or starts
+a second mic. Appending a retained thought is deliberate behavior: the visible
+context and stopped waveform identify it, and actual capture gets its own haptic.
+No custom second physical Action Button press is assumed proven.
 
-Pairing belongs to the plugin: the computer presents a short one-time code;
-exchange returns a revocable per-watch credential limited to this interface,
-plus verified instance and intake-host identity. The exact remote admission/auth
-protocol must pass the architecture's proof gate. Do not assume a core mobile
-session or plugin-wide master token provides the required per-watch scope. Keys
-remain in Keychain and supported private BB/plugin storage.
-No raw credential files, ASR keys or full workspace tokens in the watch UI/logs.
+## 4. The sole lower thread/context component
 
-Pairing identifies the actual BB instance/account and intake host, not just a
-friendly label. Upload/status calls enforce device authorization and target
-ownership. Audio, transcripts, user titles and sensitive URLs are excluded from
-diagnostic logs and public build artifacts. The desktop plugin names the configured voice service and clearly explains
-hosted ASR when selected: orchestration on the computer does not imply local
-inference or prevent audio from reaching that configured service. Raw voice is not an instruction to
-change routing, credentials, approval policy or the processing pipeline.
+For a bound thread: actual title, activity icon and disclosure affordance. These
+icons represent actual BB idle/working/question/done/failure state, not audio
+upload, ASR or receipt. Stale/unknown data is neutral, never fabricated Done.
+The same component remains in place across recorder states.
 
-## 9. Measurable acceptance for the first complete release
+For unbound routing: **BB** plus a routing glyph, not Auto, New or an unrelated
+last-used thread. A later route/receipt never switches the current context. A
+resolved target can be selected through Threads or an authorized notification
+link; it is not silently adopted while another recording is being composed.
 
-| ID | Observable acceptance |
-|---|---|
-| V01 | After system microphone consent, a user starts recording in one tap without choosing a thread, model or connection; denied/unavailable microphone has a truthful recovery state. |
-| V02 | Pause/resume creates one coherent ordered recording; explicit Send during either state retains all finalized parts. |
-| V03 | Every single-level picker X dismisses without target/audio mutation; selecting commits one value; native Back on pushed pages returns to the actual invoker. Search or replay cannot steal the recording mic without an explicit pause. |
-| V04 | No watch process/transport request performs ASR or calls an ASR provider. With provider unavailable, audio still obtains a BB durable receipt. |
-| V05 | On real Ultra 2, explicit Send then wrist-down completes delivery when the OS/network permits; status reconciles after reopening without another Send. Record actual timing and OS deferral. |
-| V06 | Interrupted upload and lost receipt recover under the same recording ID; one audio intake/job exists and originals stay intact until receipt. |
-| V07 | Four-minute Russian/English audio is durably received complete, transcribed on the computer in correct segment order, and becomes one BB message; reported duration/frame count detect omissions. |
-| V08 | Computer asleep/offline shows queued local audio; making BB reachable resumes under the same operation ID. No nearby iPhone is needed. |
-| V09 | Two sends to one target stay in Send order; a slow/failed target does not block a different target. |
-| V10 | Follow-ups to pending New resolve to one real thread; explicit independent New creates a separate context. Wrong-account or unauthorized targets never receive audio. |
-| V11 | Plugin restart recovers originals, completed ASR groups and receipts; ambiguous send/spawn never automatically duplicates a message. Deletion/retention cannot erase deduplication or abandonment fences. |
-| V12 | Recorder is ready for another draft after enqueue; an explicit secondary action also parks an unsent draft without Send/delete. Restoring a draft is deliberate; receipts cannot alter its target. |
-| V13 | Largest supported Dynamic Type is usable by Crown scrolling; primary controls are reachable; VoiceOver, Reduce Motion and dimmed display match actual state. |
-| V14 | Every picker has visible Close and no Back; each pushed page has native Back. Primary recorder controls fit the default viewport, without a decorative phone frame, dead regions or hidden-only actions. |
-| V15 | Revocation and account switch do not leak/rebind old queued recordings; neither diagnostics nor distributed artifacts contain private audio/transcripts/credentials. |
-| V16 | A fresh source checkout builds both plugin and watch; deterministic lifecycle/failure checks and actual-device transfer evidence distinguish implementation from completion claims. |
+Context is either unbound BB routing or an exact authorized thread ID, scoped to
+the paired BB instance/account. A manually chosen or notification-linked thread
+persists across repeated record/send until explicitly changed, including quick
+start. Jev must not silently override it. Spoken conflicting routing is held for
+resolution rather than sent to a different chat. In unbound mode, spoken thread /
+project intent is resolved against authorized candidates; ambiguity is not a
+permission to guess the last active thread or create an unrelated project.
 
-Before setting performance targets, measure enqueue responsiveness, uploaded
-bytes, foreground/background receipt latency, desktop ASR and core acknowledgement
-separately. Release evidence includes four-minute real-network wrist-down cases;
-a simulator upload or tiny foreground recording is not equivalent acceptance.
-No spinner-only success claim and no general latency promise from two samples.
+## 5. Threads, context changes and reply links
 
-## 10. Approval and clean implementation boundary
+Tap the sole row to open one sheet with visible Close X. The current context,
+recent authorized threads and BB routing choice are available. Tap another choice
+to commit it and dismiss; current-row disclosure expands a bounded original BB
+excerpt inline. Expanding, collapsing and Close never start capture/send.
+No nested sheet, extra reader route or hidden-only gesture is required.
 
-Current stage: spec/design/architecture review only. Fable must critique product
-scope, every navigation path, watchOS HIG, accessibility, background feasibility,
-plugin/API assumptions, failure recovery and the implementation plan. The lead
-must verify claims against actual SDK/types and resolve review findings.
+Opening/closing the sheet preserves context, input ownership, draft and focus.
+Selecting a different context checkpoints/stops current audio before committing
+the switch, retains the stopped draft in its original context and restores any
+existing stopped draft in the destination. **One editable draft per context**;
+returning to that context exposes its red REC and Enter. Same-context selection
+is not a duplicate-draft action. The sheet indicates retained drafts without a
+recording-history page. A failed checkpoint cannot silently finish the switch.
 
-Only after the package is agreed should an isolated rewrite worktree be prepared
-and Astra started with the new approved documents, verified public contracts and
-owned assets. Preserve the current released checkout, app data, signed artifact
-and source history. Remove legacy implementation only inside that rewrite
-worktree. Do not pass old source, incident transcripts, old prompts or legacy
-designs to Astra as reference. A neutral migration requirement for existing
-recordings is a product contract, not permission to silently delete user data.
+An inbound reply link opens this same recorder for its exact authorized thread;
+it is not implicit authorization to record, send, discard, retarget existing
+audio or grant broader permissions. It follows the same context/draft rules.
+Duplicate, stale, deleted, unavailable and cross-pairing targets have bounded
+truthful recovery, never title matching or fallback to a different recipient.
+A link during finalization cannot modify an already frozen operation.
 
-Open release gates: plugin transport/auth SDK feasibility; dispatch dedup/reconcile
-contract; runtime proof of New creation reconciliation; recording-background capability;
-measured local/desktop storage limits; tested neutral migration/recovery contract. These
-are explicit go/no-go gates in the implementation plan. A reviewed plan may
-start bounded Phase 0 proofs; full implementation cannot build around a failed
-or unresolved platform/auth/dispatch contract.
+Phone notification URLs are not assumed to launch a standalone watch remotely.
+Watch launch/URL routing, payload identity, auth and cold/warm behavior require
+actual integration proof. No existing scheme/notification support is invented.
+
+## 6. Durable delivery and computer-side processing
+
+A stable recording/operation identity survives retries, app/process death,
+background-session reconciliation and lost receipts. The plugin accepts frozen
+**routing intent**, including unbound BB, before ASR determines a final target.
+Audio intake is idempotent for the same immutable operation; querying/retrying
+its same identity cannot create another processing job.
+
+The receipt proves complete validated audio, immutable manifest/identity and a
+recoverable plugin job. Uploading all bytes or obtaining an arbitrary HTTP 200 is
+insufficient. The received compressed representation is not falsely described as
+bit-identical PCM original. Retain local originals until verified receipt. After
+that receipt, local audio is eligible for bounded automatic storage reclamation;
+unsent, unaccepted and uncertain audio never is. Keep a durable receipt/order
+ledger when bytes are reclaimed. The plugin retains accepted source through
+unfinished or failed processing; expiry cannot strand an active recovery job.
+Deduplication/order/abandonment facts outlive bytes. Unknown acceptance is never
+treated as canceled/unsent. Quota/reserve thresholds are measured release gates.
+
+Compression is required for the intended delivery path. AAC-LC sealed M4A is a
+candidate, not an accepted default: earlier direct-AAC trials lost English; the
+new candidate decodes on the computer to PCM16 before BB ASR. Validate RU/EN,
+names/numbers/negations, duration/frame order, decoder priming/padding and part
+boundaries against the same PCM source. No lossy release before that gate; no
+silent replacement by an uncompressed release or general speed claim.
+
+The plugin retains received source, ordered complete ASR results and one durable
+routing/model decision per operation. A failed segment cannot disappear or make
+partial text appear complete. Existing-thread policy and explicit exact IDs are
+preserved. Jev candidate authorization, confidence, project/model mapping and
+new-thread creation/reconciliation need verified contracts, not an assumed router.
+
+Persist Send sequence at enqueue. Preserve order where jobs share an actual
+recipient, including late ASR/routing and unresolved BB jobs. An earlier unbound
+job that might address a later job's target is an ordering barrier until resolved
+or explicitly released on BB. Known independent recipient lanes can progress
+independently. Do not promise both unrestricted independent progress and strict
+order while an older destination is unknown. Neither barrier blocks recording.
+
+Idempotent audio intake is distinct from the BB mutation boundary. Without a
+verified core idempotency/reconciliation contract, ambiguous send/spawn acceptance
+stops automatic replay and requires reconciliation on BB. A lost audio receipt
+is reconciled under its original ID, never a fresh recording or extra agent turn.
+
+## 7. Failures without a history application
+
+The [transition/error contract](bb-watch-transition-contract.md) is normative for
+permission/setup, activation, no input, storage, interruption, checkpoint, resume,
+finalization, transport, receipt, auth, routing and core-acceptance recovery.
+Normal UI remains two surfaces; exceptional short native recovery prompts may
+refer to the affected context. Older pending/failed operations must remain
+noticeable/actionable while a new context records; they cannot be overwritten by
+the latest operation or hidden in a context no longer in the recent list. A fixed
+input-owned issue indicator remains accessible during recording. It opens the
+same Threads sheet with a conditional Issues row expanded. Only exceptional
+items appear there; neither successful nor ordinarily progressing sends form
+a history. Rare issue/setup text is allowed inside that explicit recovery UI.
+After verified complete-audio receipt, ASR/routing/dispatch problems belong only
+to full BB; the first release does not mirror them on the watch.
+
+Input/capture faults and durable outbox issues belong to input recovery, never
+the thread activity glyph. Recovery is bound to the affected operation/context;
+a late error cannot steal focus, interrupt a healthy capture, select a recipient
+or retry another job. Never create a new ID for audio whose seal or acceptance may have occurred.
+Check again reconciles its original ID. Deleting a local copy in this state
+warns both that unreceived audio may be lost and received audio may still send;
+it preserves the unknown ledger and ordering barrier. No blind Send again. New audio capture must not be held
+until slow network, ASR or an agent completes.
+
+App interruption or storage pressure stops/checkpoints; reactivation restores
+stopped/red REC, not automatic capture. Wrist-down and normal backgrounding alone
+must not be interpreted as user Stop; legitimate background recording is a
+hardware gate. Termination recovery preserves committed parts/aligned prefixes,
+marks interrupted/incomplete audio honestly and does not silently submit missing
+speech. Preserve known interruption/incompleteness and affected boundaries in
+the immutable audio manifest through plugin processing; full BB can explain
+missing audio. Intentional Stop alone is not incomplete. Appending does not erase
+a known gap or fabricate replacement silence. Exact wire fields require proof.
+No arbitrary duration cap; finite limits and low-space recovery are real.
+
+Account/pairing changes freeze old-identity work without cross-account rebinding.
+Unpaired capture may be locally saved, but its eventual binding/send requires
+explicit authorized setup; entering a pairing code is not authorization to flush
+all old drafts. Deleting drafts, revoking pairing and retargeting queued operations
+have separate consequences. Original audio is never deleted to clear a badge.
+
+Migration preserves legacy delivery meaning: previously accepted/unknown work is
+not a fresh outbox item, and import never sends. Legacy BB prompt acceptance is
+not proof of this plugin's complete-audio receipt; do not use it to auto-delete
+old source audio under the new receipt cleanup rule. Truly unsent imported audio
+requires a deliberate identity/target choice and explicit Send.
+
+Pairing is plugin-owned with a short one-time setup code and revocable per-watch
+scope, not a full workspace/master token. Keys remain in Keychain or supported
+private plugin storage. Audio/transcripts/titles/credentials and sensitive URLs
+never enter diagnostic logs or public artifacts. Diagnostics use scoped operation
+IDs, state, error codes and stage timings; scene/identity values are current at
+each event, not reused startup snapshots. Full BB names the configured hosted
+transcription/routing services without implying offline-only processing.
+
+## 8. Visual, motion and accessibility contract
+
+Black/white neutral BB controls with lime start/Enter and red stopped REC. Waveform
+represents actual input progressing left-to-right; it freezes/dims when stopped.
+Keep X, center square/REC and Enter at stable positions. Microphone/record glyph,
+color, waveform and accessible names agree; red alone is not the state signal.
+
+Transitions must not move irreversible actions into the old hit area of a safe
+action. An old touch, delayed callback or repeated tap cannot activate the next
+state's action. Haptics/announcements reflect actual completed transitions, never
+optimistic recording, enqueue, acceptance or thread activity. Long activation or
+network work is represented honestly without fake progress/ETA.
+
+Use short content/opacity transitions, stable focus and no decorative motion.
+Reduce Motion has immediate/static equivalents; Always On never suggests live
+input when none exists. VoiceOver labels Record, Stop and save, Continue recording,
+Send recording, Discard recording and thread status. Dynamic Type, hit areas,
+Crown scrolling and contrast are verified on supported real watch sizes; concept
+images are not HIG/platform acceptance evidence.
+
+## 9. Observable release acceptance
+
+| ID | Given / when | Required observable result |
+|---|---|---|
+| P01 | Authorized empty compose → tap mic / quick-start | One mic owner; first real input establishes recording, no premature meter/haptic |
+| P02 | Permission pending/denied or activation/no-input failure | No empty send or fake capture; retry returns to the same prior draft |
+| P03 | Recording → square → red REC → Enter | Same draft, ordered old+new audio, no duplicate message or mandatory pause before send |
+| P04 | Live → Enter; repeat tap/held gesture | One durable operation; next capture only after enqueue, initiating gesture never sends twice |
+| P05 | Stop/resume/finalize/write/restore failure, timeout or crash at enqueue | Bounded truthful recovery without network-gated startup; retained audio has one owner, no editable copy of queued audio or destructive reset |
+| P06 | Queue pending → new recording/send | New input remains usable; older delivery does not alter its target or microphone |
+| P07 | Open/Close Threads, same/different context, checkpoint failure | No implicit send; same-context no duplicate; changed context retains/restores stopped drafts |
+| P08 | BB unbound versus exact chosen target | One lower row, truthful glyph; only BB may semantic-route; exact target cannot be silently overridden |
+| P09 | Delayed/stale/unknown/question/done thread update | Source-correct icon and focus stability; no upload/ASR stage disguised as agent working |
+| P10 | Authorized reply link, cold/warm/duplicate/stale/revoked link | Same recorder/context; no automatic mic/send, wrong target fallback or discarded draft |
+| P11 | Device offline/computer asleep, partial upload/lost receipt/relaunch | Same operation resumes/reconciles; no iPhone dependency or wake/ETA promise |
+| P12 | Idempotent intake retry versus ambiguous BB send/spawn | One intake job; no automatic replay of an ambiguously accepted core mutation |
+| P13 | Multiple contexts/jobs; old failure arrives during new recording | Affected job remains discoverable and recoverable without stealing capture/focus or a history page |
+| P14 | ASR/provider/routing failure after durable audio receipt | Received source retained; no re-dictation/re-upload or false transfer failure; correct BB-side recovery |
+| P15 | Earlier unbound/failed ASR then later exact/known independent recipient | Enforced Send-order barriers and independent safe lanes; no arrival-order submission |
+| P16 | Four-minute RU/EN and longer segmented source; boundary/crash/interruption | Complete chronological source/text or explicit incomplete recovery; no silent middle omission |
+| P17 | Screen asleep/background/force quit then restart | Measured hardware behavior; original/task/receipt reconciliation, no guessed termination reason |
+| P18 | Low space or checkpoint truncation; confirmed/canceled discard | Preserve committed audio; no automatic deletion to recover capacity or badge; explicit incomplete status |
+| P19 | Revocation/re-pair/account switch | Old work isolated, no credential/target rebinding or automatic flush |
+| P20 | No history/playback/New forms; only record/thread surfaces | Current spec/design and all transitions reachable without resurrecting removed routes |
+| P21 | Reduced Motion/Always On/VoiceOver/large text | Truthful state, stable native hit targets/focus and accessible red REC/Enter distinction |
+| P22 | Fresh build/migration with real saved legacy audio | Neutral import preserves audio/delivery state; import never sends or deletes; no uninstall as repair |
+
+Transition-contract scenario IDs supplement P01–P22. They are design acceptance,
+not passing runtime tests. Measure first-buffer, stop/checkpoint, enqueue, watch
+receipt, ASR and core acknowledgement separately; set release budgets from actual
+device/network evidence, not inferred ASR samples or animation duration.
+
+## 10. Before implementation/release claims
+
+- Own per-watch authorization and scoped remote plugin admission, including
+  actual file-sized bodies and account/host/instance checks.
+- Real continuous capture, stopped/append continuity, interruption/crash and
+  wrist-down behavior on standalone Ultra 2; measured storage and energy budgets.
+- Compressed transport → decode → ASR quality/boundaries for RU/EN and long audio.
+- Complete background declare/parts/seal/receipt under LTE, lost response, relaunch,
+  force quit and plugin restart; OS may defer networking, no completion deadline.
+- BB exact target/status/peek APIs, durable Jev routing/model and dispatch ledger,
+  ordered unbound/exact jobs, new-thread unknown-acceptance reconciliation.
+- Actual notification-to-watch context launch/auth and stale/duplicate-link cases.
+- Storage/retention/quotas, actionable older outbox failures and safe legacy import.
+
+The [2.0 engineering plan](bb-watch-architecture.md) is an inherited safety/platform
+baseline, not an implementation plan for 3.0. Update/review its changed routing,
+compression, notification and recovery contracts before a clean rewrite. The
+current task changes documents only; no worktree, Astra implementation, device
+installation, provider call or runtime gate completion is implied.

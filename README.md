@@ -3,17 +3,19 @@
 An independent Apple Watch voice interface for [BB](https://github.com/get-bb).
 This is a community project, not an official BB release.
 
-## Proposed next product: voice delivery plugin
+## Proposed next product: voice terminal + BB plugin
 
-[Specification 2.0](specs/bb-watch-product-spec.md) and [design](design.md) describe
-a proposed reset: the watch records and delivers original audio; a BB plugin on
-the computer owns durable intake, transcription and thread submission. The watch
-is an external input interface, not a miniature BB conversation client.
-The [architecture and gated plan](specs/bb-watch-architecture.md) and
-[Fable/lead review](specs/reviews/bb-watch-v2-fable-review.md) define the next steps.
-The package is reviewed for Phase 0 proofs and is **not implemented yet**;
-remote admission, ASR, capture and complete background delivery remain unproven.
-The current source/build below is version 0.2.0; keep it separate from v2 claims.
+[Product 3.0](specs/bb-watch-product-spec.md), [design](design.md) and
+[transition/error contract](specs/bb-watch-transition-contract.md) define two
+watch surfaces: recorder and Threads. The watch repeats record/send; a BB plugin
+owns durable audio intake, transcription, routing and thread submission. A
+notification reply opens the same recorder with exact thread context, pending
+actual platform/integration proof. Stop/save becomes red classic REC to append.
+
+This package is **not implemented or hardware validated**. Installed 0.2.0 is
+separate. The [earlier engineering plan](specs/bb-watch-architecture.md) and Fable
+reviews are historical baselines, not approval of 3.0. Remote admission, codec /
+ASR, capture, complete background delivery, routing and deep links remain gates.
 
 ## Installed 0.2.0 scope
 
@@ -26,7 +28,7 @@ The current source/build below is version 0.2.0; keep it separate from v2 claims
 
 Earlier device smoke tests do not establish reliable long-recording delivery.
 The current watch-side transcription path can be delayed by background suspension.
-Version 2.0 moves this work to the computer; it must pass independent wrist-down
+The proposed terminal moves this work to the computer; it must pass independent wrist-down
 transfer and recovery acceptance before release.
 
 ## Build

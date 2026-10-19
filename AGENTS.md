@@ -4,10 +4,12 @@
 
 Read `docs/HANDOFF.md`, `native/README.md`, and `specs/bb-watch-product-spec.md`.
 The specification describes the intended product; it is not a completion claim.
-Version 2.0 proposes a voice-delivery watch app plus a BB plugin that owns audio
-intake, transcription and submission. Read `design.md` and
-`specs/bb-watch-architecture.md` for that direction and its unproven Phase 0 gates.
-Do not apply the installed client's conversation/question requirements to v2.
+Version 3.0 specifies a two-surface voice terminal plus a BB plugin that owns
+audio intake, transcription and submission. Read `design.md` and
+`specs/bb-watch-transition-contract.md` for current behavior. The 2.0 architecture
+is an inherited safety/platform baseline that needs reconciliation before rewrite;
+its runtime gates are unproven. Do not apply installed conversation/question,
+recording-history or playback requirements to 3.0.
 The product constraints, architecture and checks below describe the installed
 0.2.0 source; its contract is `specs/archive/bb-watch-product-spec-1.2.md`.
 Use `specs/chats-watch-integration.md` for the verified existing BB/Chats boundary.
