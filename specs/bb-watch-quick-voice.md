@@ -1,10 +1,10 @@
 # BB Quick Voice — minimal version
 
-**Latest capture-control override:** [direct-send v4](../docs/design/direct-send-v4.md).
-Start → visible primary Send is the normal two-action flow; pause is secondary.
-This supersedes the capture-control descriptions and art below, including their
-Finish & send copy. Routing/delivery invariants remain. The old Fable approval
-does not cover this user-directed revision.
+**Latest capture-control override:** [BB composer v5](../docs/design/bb-composer-v5.md).
+Start → Enter sends directly; square stops/saves locally; X discards. Use BB's
+left-to-right waveform without Send text or recording timer. This supersedes
+the capture-control descriptions/art below; routing/delivery invariants remain.
+The old Fable approval does not cover this user-directed revision.
 
 Updated 19 October 2026. **Product/design proposal for the latest user request; not an
 implemented or hardware-validated build.** This refines the

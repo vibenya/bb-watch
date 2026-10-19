@@ -1,5 +1,8 @@
 # Quick Voice — start, then Send
 
+**Superseded:** [BB composer v5](bb-composer-v5.md) uses original BB icons and
+waveform without Send text or timer, and separates square stop/save from Enter.
+
 19 October 2026. Latest user-directed control revision. **Concept, not implemented
 or covered by the earlier Fable approval.** Supersedes record-first v3 and the
 older capture-control hierarchy; destination/history and delivery invariants remain.

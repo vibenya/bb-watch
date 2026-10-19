@@ -1,9 +1,9 @@
 # BB Watch — voice delivery design
 
-**Latest control revision:** [direct-send v4](docs/design/direct-send-v4.md)
-uses the hero for start → labeled Send, with optional secondary pause/resume and
-cancel. It supersedes record-first v3. This user-directed revision is not covered
-by the previous Fable approval; the v2 review remains a frozen historical verdict.
+**Latest control revision:** [BB composer v5](docs/design/bb-composer-v5.md)
+uses BB's left-to-right waveform, curved Enter send, square stop/save and X
+discard. No Send text or recording timer. It supersedes v4's controls; the old
+Fable approval remains a frozen historical verdict, not approval of this revision.
 
 [Tap / history / Reply storyboard](docs/design/quick-voice-interactions-v2.png) ·
 [Interaction contract](docs/design/quick-voice-interactions.md) ·

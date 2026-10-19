@@ -1,0 +1,15 @@
+# BB composer v5 — generation brief
+
+Built-in imagegen, 19 October 2026. Original concept using the user-provided BB
+composer screenshot as icon/style reference. The source screenshot is not copied
+into the repository. Not a native screenshot or measured layout.
+
+```text
+Use case: ui-mockup. Reference image is the ORIGINAL BB recording composer. Faithfully reuse its icon vocabulary and quiet graphic design in a THREE-screen Apple Watch voice app storyboard, with black rounded watch display crops on warm off-white canvas. External titles only: "01 / НАЧАТЬ", "02 / ЗАПИСЬ", "03 / СОХРАНЕНО". All screens equal size side by side. Native SF-like typography, clock 10:09 top-right. Minimal black/white/neutral gray with restrained lime #D5FF00 BB Watch accent. No device hardware.
+MOST IMPORTANT: NO Send text, NO elapsed TIMER or recording duration ANYWHERE on any screen. NO upward send arrow, NO action checkmark, NO pause bars, NO glowing halo. Use EXACT original BB action icon language: thin X = discard, filled small square = stop/save, curved leftward keyboard Return/Enter arrow = send. The send glyph must look like the curved ENTER arrow in the supplied reference (↵), NOT an up arrow and NOT a paper plane.
+01 idle: one dominant lime circular microphone start control centered; beneath a compact gray "Auto" recipient capsule with down chevron. Thin separator then one partial history row "Watch sync" with small receipt glyph and age "2m" only for past history. Nothing else.
+02 recording: the HERO is now a real horizontal AUDIO WAVEFORM of many small vertical white rounded bars/dots across the screen, traveling LEFT TO RIGHT, inspired by the exact reference's waveform. No halo, no big circular Send button. Adapt the original horizontal composer to watch proportions with two compact levels: broad waveform in upper middle; directly beneath, a stable row of THREE icon-only controls: smaller neutral gray rounded square X at left, smaller light-gray rounded square with black filled STOP SQUARE in middle, and slightly more prominent lime rounded square with BLACK CURVED ENTER/RETURN ARROW at right. Clear 44pt-like watch hit areas, restrained corner radius, not a huge action circle. Below this control cluster, same Auto capsule and partial history as idle.
+03 saved locally after Stop: SAME waveform area now static muted gray and same action positions: X left, black triangular PLAY symbol inside light-gray square middle for local preview (not pause or mic), same lime ENTER/RETURN send icon at right. The static waveform plus Play distinguishes saved from recording. No Saved caption inside screen, no timer, no new explanation text, no resume requirement.
+Only titles OUTSIDE watch displays explain the states. No explanatory prose, no model/project rows. Arrow ↵ sends directly during recording or from saved state; square stops and retains local audio. Use source as visual/icon reference, not as an asset pasted into the image. This is a concept, not measured native geometry.
+```
+
