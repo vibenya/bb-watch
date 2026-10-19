@@ -1,5 +1,10 @@
 # BB Watch — voice delivery design
 
+**Latest control revision:** [record-first v3](docs/design/record-first-v3.md)
+uses the hero for record/pause/resume and fixed secondary cancel/finish actions,
+with less root copy. This user-directed revision is not covered by the previous
+Fable approval; the v2 review below remains a frozen historical verdict.
+
 [Tap / history / Reply storyboard](docs/design/quick-voice-interactions-v2.png) ·
 [Interaction contract](docs/design/quick-voice-interactions.md) ·
 [New Fable approval packet](specs/reviews/quick-voice-approval-pack.md).
