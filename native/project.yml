@@ -1,0 +1,39 @@
+name: VoiceProbe
+options:
+  bundleIdPrefix: app.getbb.voiceprobe.phase0
+  deploymentTarget:
+    watchOS: '26.0'
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGNING_REQUIRED: NO
+    DEVELOPMENT_TEAM: ''
+targets:
+  VoiceProbe:
+    type: application
+    platform: watchOS
+    sources:
+      - Core
+      - WatchProbe
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.getbb.voiceprobe.phase0
+        TARGETED_DEVICE_FAMILY: '4'
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Voice Probe
+        INFOPLIST_KEY_WKApplication: YES
+        INFOPLIST_KEY_WKWatchOnly: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Record synthetic acceptance speech in the isolated native voice probe.
+    info:
+      path: WatchProbe/Info.plist
+      properties:
+        WKBackgroundModes: [audio]
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+schemes:
+  VoiceProbe:
+    build:
+      targets:
+        VoiceProbe: all

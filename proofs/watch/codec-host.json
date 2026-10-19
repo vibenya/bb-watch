@@ -1,0 +1,38 @@
+{
+  "environment": "macOS afconvert; synthetic PCM16 only",
+  "speech_quality": "NOT RUN",
+  "cases": [
+    {
+      "rate": 48000,
+      "channels": 1,
+      "source_frames": 480,
+      "decoded_frames": 480,
+      "pcm_sha256": "87dfd7318b18a121fd7e96a6587f0dff0f49df6836bf0319e0a039d46ef146b5",
+      "encoded_bytes": 4435,
+      "correlation": 0.9921,
+      "original_preserved": true
+    },
+    {
+      "rate": 48000,
+      "channels": 1,
+      "source_frames": 48000,
+      "decoded_frames": 48000,
+      "pcm_sha256": "a387a40c32bb9a6706152c0e1fdde5ade3e0b5fe7fd555e2e33b231b15d97b26",
+      "encoded_bytes": 8548,
+      "correlation": 0.99978,
+      "original_preserved": true
+    },
+    {
+      "rate": 44100,
+      "channels": 2,
+      "source_frames": 44100,
+      "decoded_frames": 44100,
+      "pcm_sha256": "d0592710c1caf931f3d09a3e4cc2ee0dc0befce1b2b7b14604f0ddcc6ba89b2f",
+      "encoded_bytes": 9790,
+      "correlation": 0.9988,
+      "original_preserved": true
+    }
+  ],
+  "artifacts": "<synthetic-temporary-artifact>",
+  "limitations": "No RU/EN/name/number/negation ASR, watch encoder, energy, or arbitrary decoder proof. No receipt authorization."
+}

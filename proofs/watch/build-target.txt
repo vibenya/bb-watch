@@ -1,0 +1,55 @@
+native/DerivedData/Build/Products/Debug-watchos/VoiceProbe.app/VoiceProbe (architecture arm64):
+Load command 11
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform WATCHOS
+    minos 26.0
+      sdk 27.0
+   ntools 1
+     tool LD
+  version 27037.1
+native/DerivedData/Build/Products/Debug-watchos/VoiceProbe.app/VoiceProbe (architecture arm64_32):
+Load command 11
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform WATCHOS
+    minos 26.0
+      sdk 27.0
+   ntools 1
+     tool LD
+  version 27037.1
+{
+  "BuildMachineOSBuild" => "25G83"
+  "CFBundleDevelopmentRegion" => "en"
+  "CFBundleDisplayName" => "Voice Probe"
+  "CFBundleExecutable" => "VoiceProbe"
+  "CFBundleIdentifier" => "app.getbb.voiceprobe.phase0"
+  "CFBundleInfoDictionaryVersion" => "6.0"
+  "CFBundleName" => "VoiceProbe"
+  "CFBundlePackageType" => "APPL"
+  "CFBundleSupportedPlatforms" => [
+    0 => "WatchOS"
+  ]
+  "DTCompiler" => "com.apple.compilers.llvm.clang.1_0"
+  "DTPlatformBuild" => "24R360"
+  "DTPlatformName" => "watchos"
+  "DTPlatformVersion" => "27.0"
+  "DTSDKBuild" => "24R360"
+  "DTSDKName" => "watchos27.0"
+  "DTXcode" => "2710"
+  "DTXcodeBuild" => "27A9275"
+  "MinimumOSVersion" => "26.0"
+  "MinimumOSVersion~ipad" => "9.0"
+  "NSAppTransportSecurity" => {
+    "NSAllowsLocalNetworking" => true
+  }
+  "NSMicrophoneUsageDescription" => "Record synthetic acceptance speech in the isolated native voice probe."
+  "UIDeviceFamily" => [
+    0 => 4
+  ]
+  "WKApplication" => true
+  "WKBackgroundModes" => [
+    0 => "audio"
+  ]
+  "WKWatchOnly" => true
+}
