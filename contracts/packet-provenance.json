@@ -1,0 +1,41 @@
+{
+  "source_revision": "4b6cadeba2cf5a43e97efda8aa50729491aff69a",
+  "export_note": "History/review pointers removed; routing clarification included; behavior and safety retained. Actual verified protocol remains pending.",
+  "files": [
+    {
+      "path": "specs/bb-watch-product-spec.md",
+      "source_sha256": "a1297eada050cc680d0df17bc1240fbaf620d6c88dfb4a0424756e843f09c066",
+      "packet_sha256": "fdcf3f97919075e726a7dc65f5edf6676cafef5bf249ef2e6ff92adb9385638d"
+    },
+    {
+      "path": "specs/bb-watch-transition-contract.md",
+      "source_sha256": "4e8d8d98190fc4ce5517e39acedbe48216b1d5514aaa4adaf82bffd5434128b9",
+      "packet_sha256": "ca8aa1ea98fecb74f7834b030670f1781ce7bea496b5160490b2ab8870623d11"
+    },
+    {
+      "path": "specs/bb-watch-implementation-plan.md",
+      "source_sha256": "413072fad35970bf12233a386212791f1c7a9765d3265ca449ab3540120c07a6",
+      "packet_sha256": "413072fad35970bf12233a386212791f1c7a9765d3265ca449ab3540120c07a6"
+    },
+    {
+      "path": "design.md",
+      "source_sha256": "fd7464676e26f55d590096f86f1629312491bec7b2c210b1a14cefbe0fcffba8",
+      "packet_sha256": "08ecdb92d0ba69ce3ec810db8733062fab44187c55210642a4ac66b1c01947cc"
+    },
+    {
+      "path": "docs/design/voice-terminal-v8.png",
+      "source_sha256": "578061fcc5d1be82ee8b8cb31310c5e06026e29255005a1181737ad5035ad083",
+      "packet_sha256": "578061fcc5d1be82ee8b8cb31310c5e06026e29255005a1181737ad5035ad083"
+    },
+    {
+      "path": "docs/design/voice-terminal-v8-prompt.md",
+      "source_sha256": "4938b3adf46e4ca1323d874c3dbb1629e74224010df4f2dee8b4a1c652f2e125",
+      "packet_sha256": "4938b3adf46e4ca1323d874c3dbb1629e74224010df4f2dee8b4a1c652f2e125"
+    },
+    {
+      "path": "docs/design/voice-terminal-v8-delivery.svg",
+      "source_sha256": "0510bc7df179566c75865056cc8e54c88d6a6f4075a6a46a2313c6bb6b6b576a",
+      "packet_sha256": "0510bc7df179566c75865056cc8e54c88d6a6f4075a6a46a2313c6bb6b6b576a"
+    }
+  ]
+}

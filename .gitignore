@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+dist/
+.build/
+DerivedData/
+*.xcodeproj/
+*.xcuserstate
+.env
+.env.*
+*.caf
+*.wav
+*.m4a
+*.pcm
+*.log
+*.p12
+*.mobileprovision
